@@ -1,1 +1,1181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Production Operations Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2c3e50;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-color: #ecf0f1;
+            --dark-color: #2c3e50;
+            --gray-color: #95a5a6;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --border-radius: 6px;
+            --transition: all 0.3s ease;
+        }
 
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: var(--dark-color);
+            line-height: 1.6;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background-color: var(--dark-color);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: var(--shadow);
+            position: relative;
+            z-index: 10;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .header h1 i {
+            margin-right: 10px;
+        }
+
+        .controls {
+            background-color: white;
+            padding: 1rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            align-items: end;
+            box-shadow: var(--shadow);
+            z-index: 5;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+            font-size: 0.9rem;
+            color: var(--secondary-color);
+        }
+
+        .filter-group select, 
+        .filter-group input {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            background-color: white;
+            font-size: 0.9rem;
+            transition: var(--transition);
+        }
+
+        .filter-group select:focus, 
+        .filter-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+
+        .dashboard {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 1rem;
+            padding: 1rem;
+            overflow: auto;
+        }
+
+        .card {
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 1rem;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.5rem;
+        }
+
+        .card-title {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--secondary-color);
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            background-color: var(--light-color);
+            border: none;
+            border-radius: var(--border-radius);
+            padding: 0.3rem 0.6rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--dark-color);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-success {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .btn-warning {
+            background-color: var(--warning-color);
+            color: white;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .btn.active {
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+            transform: translateY(1px);
+        }
+
+        .card-body {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 100;
+            display: none;
+        }
+
+        .list-container {
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .reject-list {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .reject-item {
+            padding: 0.5rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .reject-item:last-child {
+            border-bottom: none;
+        }
+
+        .reject-reason {
+            font-weight: 600;
+        }
+
+        .reject-details {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--gray-color);
+            margin-top: 2px;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        /* Specific card sizes */
+        .card.double-width {
+            grid-column: span 2;
+        }
+
+        .card.double-height {
+            grid-row: span 2;
+        }
+
+        /* Loader */
+        .loader-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--primary-color);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .no-data-message {
+            text-align: center;
+            color: var(--gray-color);
+            font-style: italic;
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 1200px) {
+            .dashboard {
+                grid-template-columns: repeat(2, 1fr);
+                grid-template-rows: auto;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                overflow-y: auto;
+            }
+
+            body {
+                overflow: auto;
+            }
+
+            .card.double-width {
+                grid-column: auto;
+            }
+
+            .card.double-height {
+                grid-row: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="loader-container" id="loaderContainer">
+        <div class="loader"></div>
+    </div>
+    
+    <header class="header">
+        <h1><i class="fas fa-industry"></i> Production Operations Dashboard</h1>
+    </header>
+    
+    <section class="controls">
+        <div class="filter-group">
+            <label for="dateFrom">Date From</label>
+            <input type="date" id="dateFrom">
+        </div>
+        <div class="filter-group">
+            <label for="dateTo">Date To</label>
+            <input type="date" id="dateTo">
+        </div>
+        <div class="filter-group">
+            <label for="productFilter">Product</label>
+            <select id="productFilter">
+                <option value="all">All Products</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label for="variantFilter">Variant</label>
+            <select id="variantFilter">
+                <option value="all">All Variants</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <button id="applyFilters" class="btn btn-primary">
+                <i class="fas fa-filter"></i> Apply Filters
+            </button>
+        </div>
+    </section>
+    
+    <main class="dashboard">
+        <div class="card double-width">
+            <div class="card-header">
+                <div class="card-title">Production Target vs Actual</div>
+                <div class="card-actions">
+                    <button class="btn btn-primary" id="toggleProductionView">
+                        <i class="fas fa-exchange-alt"></i> Toggle View
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="productionChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Schedule Attainment</div>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="scheduleAttainmentChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Top 3 Reject Rate by Station</div>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="rejectRateChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Top Rejects</div>
+                <div class="card-actions">
+                    <button class="btn active" id="rejectsByQty">By QTY</button>
+                    <button class="btn" id="rejectsByCost">By Cost</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="list-container">
+                    <ul class="reject-list" id="rejectsList"></ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Scrap Cost % of Production Value</div>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="scrapCostChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Cost Metrics</div>
+                <div class="card-actions">
+                    <button class="btn active" id="showStaffCost">Staff Cost</button>
+                    <button class="btn" id="showCostPerUnit">Cost/Unit</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="costMetricsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Configuration
+        const config = {
+            chartsDefaultColors: [
+                'rgba(52, 152, 219, 0.6)', // Blue
+                'rgba(46, 204, 113, 0.6)', // Green
+                'rgba(231, 76, 60, 0.6)',  // Red
+                'rgba(241, 196, 15, 0.6)', // Yellow
+                'rgba(155, 89, 182, 0.6)'  // Purple
+            ],
+            chartsDefaultBorderColors: [
+                'rgba(52, 152, 219, 1)',
+                'rgba(46, 204, 113, 1)',
+                'rgba(231, 76, 60, 1)',
+                'rgba(241, 196, 15, 1)',
+                'rgba(155, 89, 182, 1)'
+            ],
+            animationDuration: 800,
+            tooltipBackgroundColor: 'rgba(0, 0, 0, 0.7)',
+            tooltipTitleColor: '#ffffff',
+            tooltipBodyColor: '#ffffff',
+            tooltipBorderColor: 'rgba(255, 255, 255, 0.2)',
+            tooltipBorderWidth: 1
+        };
+
+        // Global variables
+        let rawData = [];
+        let filteredData = [];
+        let productionChart = null;
+        let scheduleAttainmentChart = null;
+        let rejectRateChart = null;
+        let scrapCostChart = null;
+        let costMetricsChart = null;
+        let productionViewMode = 'devices'; // 'devices' or 'boxes'
+        let rejectsViewMode = 'qty'; // 'qty' or 'cost'
+        let costViewMode = 'staff'; // 'staff' or 'unit'
+
+        // DOM elements
+        const dateFromInput = document.getElementById('dateFrom');
+        const dateToInput = document.getElementById('dateTo');
+        const productFilter = document.getElementById('productFilter');
+        const variantFilter = document.getElementById('variantFilter');
+        const applyFiltersBtn = document.getElementById('applyFilters');
+        const toggleProductionViewBtn = document.getElementById('toggleProductionView');
+        const rejectsByQtyBtn = document.getElementById('rejectsByQty');
+        const rejectsByCostBtn = document.getElementById('rejectsByCost');
+        const showStaffCostBtn = document.getElementById('showStaffCost');
+        const showCostPerUnitBtn = document.getElementById('showCostPerUnit');
+        const rejectsList = document.getElementById('rejectsList');
+        const loaderContainer = document.getElementById('loaderContainer');
+
+        // Helper functions
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+            });
+        }
+
+        function parseDate(dateString) {
+            // Handle multiple date formats including MM/DD/YYYY
+            const date = new Date(dateString);
+            if (!isNaN(date.getTime())) {
+                return date;
+            }
+            
+            // Try MM/DD/YYYY format
+            const parts = dateString.split('/');
+            if (parts.length === 3) {
+                return new Date(parts[2], parts[0] - 1, parts[1]);
+            }
+            
+            return null;
+        }
+
+        function sortByDate(a, b) {
+            return parseDate(a.Date) - parseDate(b.Date);
+        }
+
+        function getUniqueValues(data, field) {
+            return [...new Set(data.map(item => item[field]))].filter(Boolean);
+        }
+
+        function getRejectRateByStation(record) {
+            if (!record['Reject Rate by Station'] || record['Reject Rate by Station'] === 'No rejects') {
+                return [];
+            }
+
+            return record['Reject Rate by Station'].split(', ').map(item => {
+                const [station, rate] = item.split(': ');
+                return {
+                    station,
+                    rate: parseFloat(rate.replace('%', ''))
+                };
+            }).sort((a, b) => b.rate - a.rate).slice(0, 3);
+        }
+
+        function parseTopRejects(record, type) {
+            const field = type === 'qty' 
+                ? 'Top Rejects by QTY (Reason - Station - QTY - Cost)' 
+                : 'Top Rejects by Cost (Reason - Station - QTY - Cost)';
+                
+            if (!record[field] || record[field] === 'No rejects') {
+                return [];
+            }
+
+            return record[field].split(' | ').map(item => {
+                // Parse the format: "1. Reason - Station - QTY: X - Cost: Y"
+                const matches = item.match(/(\d+)\.\s(.*?)\s-\s(.*?)\s-\sQTY:\s(\d+)\s-\sCost:\s([\d.]+)/);
+                
+                if (matches && matches.length >= 6) {
+                    return {
+                        rank: parseInt(matches[1]),
+                        reason: matches[2],
+                        station: matches[3],
+                        qty: parseInt(matches[4]),
+                        cost: parseFloat(matches[5])
+                    };
+                }
+                return null;
+            }).filter(Boolean);
+        }
+
+        // Data fetching and processing
+        async function fetchData() {
+            try {
+                showLoader();
+                const response = await fetch('./OpsData.json');
+                const data = await response.json();
+                
+                if (data && data.productionData && Array.isArray(data.productionData)) {
+                    rawData = data.productionData.sort(sortByDate);
+                    initializeFilters();
+                    applyFilters();
+                } else {
+                    console.error('Invalid data format');
+                    hideLoader();
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                hideLoader();
+            }
+        }
+
+        function initializeFilters() {
+            // Get unique products
+            const products = getUniqueValues(rawData, 'Product');
+            
+            // Populate product filter
+            productFilter.innerHTML = '<option value="all">All Products</option>';
+            products.forEach(product => {
+                const option = document.createElement('option');
+                option.value = product;
+                option.textContent = product;
+                productFilter.appendChild(option);
+            });
+            
+            // Set default date range to last 5 dates with data
+            const dates = rawData.map(item => parseDate(item.Date)).filter(Boolean).sort((a, b) => a - b);
+            
+            if (dates.length > 0) {
+                const latestDates = dates.slice(-5);
+                dateFromInput.valueAsDate = latestDates[0];
+                dateToInput.valueAsDate = latestDates[latestDates.length - 1];
+            }
+            
+            // Product filter change event
+            productFilter.addEventListener('change', updateVariantFilter);
+            
+            // Initialize variant filter
+            updateVariantFilter();
+        }
+
+        function updateVariantFilter() {
+            const selectedProduct = productFilter.value;
+            
+            // Filter variants based on selected product
+            let variants;
+            if (selectedProduct === 'all') {
+                variants = getUniqueValues(rawData, 'Variant');
+            } else {
+                variants = getUniqueValues(
+                    rawData.filter(item => item.Product === selectedProduct), 
+                    'Variant'
+                );
+            }
+            
+            // Populate variant filter
+            variantFilter.innerHTML = '<option value="all">All Variants</option>';
+            variants.forEach(variant => {
+                const option = document.createElement('option');
+                option.value = variant;
+                option.textContent = variant;
+                variantFilter.appendChild(option);
+            });
+        }
+
+        function applyFilters() {
+            showLoader();
+            
+            const dateFrom = dateFromInput.valueAsDate;
+            const dateTo = dateToInput.valueAsDate;
+            const product = productFilter.value;
+            const variant = variantFilter.value;
+            
+            // Filter data
+            filteredData = rawData.filter(item => {
+                const itemDate = parseDate(item.Date);
+                
+                // Date range filter
+                const dateInRange = (!dateFrom || itemDate >= dateFrom) && 
+                                    (!dateTo || itemDate <= dateTo);
+                                    
+                // Product filter
+                const productMatch = product === 'all' || item.Product === product;
+                
+                // Variant filter
+                const variantMatch = variant === 'all' || item.Variant === variant;
+                
+                return dateInRange && productMatch && variantMatch;
+            }).sort(sortByDate);
+            
+            // Update dashboard
+            updateDashboard();
+            
+            hideLoader();
+        }
+
+        // Dashboard update functions
+        function updateDashboard() {
+            updateProductionChart();
+            updateScheduleAttainmentChart();
+            updateRejectRateChart();
+            updateRejectsList();
+            updateScrapCostChart();
+            updateCostMetricsChart();
+        }
+
+        function updateProductionChart() {
+            const ctx = document.getElementById('productionChart').getContext('2d');
+            
+            // Check if we have data
+            if (!filteredData.length) {
+                renderNoDataMessage(ctx, 'No production data available for the selected filters');
+                return;
+            }
+            
+            // Prepare data
+            const labels = filteredData.map(item => formatDate(item.Date));
+            
+            // Values based on current view mode
+            const actualValues = filteredData.map(item => 
+                productionViewMode === 'devices' 
+                    ? item['Actual Devices Produced'] 
+                    : item['Actual Boxes Produced']
+            );
+            
+            const targetValues = filteredData.map(item => 
+                productionViewMode === 'devices' 
+                    ? item['Theoretical Target (Devices)'] 
+                    : item['Theoretical Target (Boxes)']
+            );
+            
+            // Destroy existing chart if it exists
+            if (productionChart) {
+                productionChart.destroy();
+            }
+            
+            // Create new chart
+            productionChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Actual',
+                            data: actualValues,
+                            backgroundColor: config.chartsDefaultColors[0],
+                            borderColor: config.chartsDefaultBorderColors[0],
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Target',
+                            data: targetValues,
+                            backgroundColor: config.chartsDefaultColors[1],
+                            borderColor: config.chartsDefaultBorderColors[1],
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: config.tooltipBackgroundColor,
+                            titleColor: config.tooltipTitleColor,
+                            bodyColor: config.tooltipBodyColor,
+                            borderColor: config.tooltipBorderColor,
+                            borderWidth: config.tooltipBorderWidth,
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.dataset.label || '';
+                                    const value = context.raw || 0;
+                                    return `${label}: ${value} ${productionViewMode === 'devices' ? 'Devices' : 'Boxes'}`;
+                                }
+                            }
+                        },
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: productionViewMode === 'devices' ? 'Devices' : 'Boxes'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateScheduleAttainmentChart() {
+            const ctx = document.getElementById('scheduleAttainmentChart').getContext('2d');
+            
+            // Check if we have data
+            if (!filteredData.length) {
+                renderNoDataMessage(ctx, 'No schedule data available for the selected filters');
+                return;
+            }
+            
+            // Prepare data
+            const labels = filteredData.map(item => formatDate(item.Date));
+            const attainmentValues = filteredData.map(item => item['Schedule Attainment']);
+            
+            // Destroy existing chart if it exists
+            if (scheduleAttainmentChart) {
+                scheduleAttainmentChart.destroy();
+            }
+            
+            // Create new chart
+            scheduleAttainmentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Schedule Attainment %',
+                            data: attainmentValues,
+                            backgroundColor: config.chartsDefaultColors[2],
+                            borderColor: config.chartsDefaultBorderColors[2],
+                            borderWidth: 2,
+                            tension: 0.1,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            backgroundColor: config.tooltipBackgroundColor,
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw || 0;
+                                    return `Attainment: ${value}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Percentage (%)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateRejectRateChart() {
+            const ctx = document.getElementById('rejectRateChart').getContext('2d');
+            
+            // Check if we have data
+            if (!filteredData.length) {
+                renderNoDataMessage(ctx, 'No reject data available for the selected filters');
+                return;
+            }
+            
+            // Get all reject rates by station
+            let allStations = [];
+            filteredData.forEach(record => {
+                const rejectRates = getRejectRateByStation(record);
+                rejectRates.forEach(item => {
+                    if (!allStations.find(s => s.station === item.station)) {
+                        allStations.push(item);
+                    }
+                });
+            });
+            
+            // Sort and get top 3
+            allStations = allStations.sort((a, b) => b.rate - a.rate).slice(0, 3);
+            
+            // If no stations with reject rates
+            if (!allStations.length) {
+                renderNoDataMessage(ctx, 'No reject rates available for the selected filters');
+                return;
+            }
+            
+            // Prepare data
+            const labels = allStations.map(item => item.station);
+            const rates = allStations.map(item => item.rate);
+            
+            // Destroy existing chart if it exists
+            if (rejectRateChart) {
+                rejectRateChart.destroy();
+            }
+            
+            // Create new chart
+            rejectRateChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Reject Rate %',
+                            data: rates,
+                            backgroundColor: [
+                                config.chartsDefaultColors[2],
+                                config.chartsDefaultColors[3],
+                                config.chartsDefaultColors[4]
+                            ],
+                            borderColor: [
+                                config.chartsDefaultBorderColors[2],
+                                config.chartsDefaultBorderColors[3],
+                                config.chartsDefaultBorderColors[4]
+                            ],
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            backgroundColor: config.tooltipBackgroundColor,
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw || 0;
+                                    return `Reject Rate: ${value.toFixed(2)}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Reject Rate (%)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateRejectsList() {
+            // Clear existing list
+            rejectsList.innerHTML = '';
+            
+            // Check if we have data
+            if (!filteredData.length) {
+                const noDataItem = document.createElement('li');
+                noDataItem.classList.add('reject-item', 'no-data-message');
+                noDataItem.textContent = 'No reject data available for the selected filters';
+                rejectsList.appendChild(noDataItem);
+                return;
+            }
+            
+            // Get top rejects based on current view mode
+            const latestRecord = filteredData[filteredData.length - 1];
+            const topRejects = parseTopRejects(latestRecord, rejectsViewMode);
+            
+            if (!topRejects.length) {
+                const noRejectsItem = document.createElement('li');
+                noRejectsItem.classList.add('reject-item', 'no-data-message');
+                noRejectsItem.textContent = 'No rejects found';
+                rejectsList.appendChild(noRejectsItem);
+                return;
+            }
+            
+            // Create list items
+            topRejects.forEach(reject => {
+                const li = document.createElement('li');
+                li.className = 'reject-item';
+                
+                const reasonDiv = document.createElement('div');
+                reasonDiv.className = 'reject-reason';
+                reasonDiv.textContent = `${reject.rank}. ${reject.reason}`;
+                
+                const detailsDiv = document.createElement('div');
+                detailsDiv.className = 'reject-details';
+                
+                const stationSpan = document.createElement('span');
+                stationSpan.textContent = `Station: ${reject.station}`;
+                
+                const qtySpan = document.createElement('span');
+                qtySpan.textContent = `QTY: ${reject.qty}`;
+                
+                const costSpan = document.createElement('span');
+                costSpan.textContent = `Cost: ${reject.cost}`;
+                
+                detailsDiv.appendChild(stationSpan);
+                detailsDiv.appendChild(qtySpan);
+                detailsDiv.appendChild(costSpan);
+                
+                li.appendChild(reasonDiv);
+                li.appendChild(detailsDiv);
+                
+                rejectsList.appendChild(li);
+            });
+        }
+
+        function updateScrapCostChart() {
+            const ctx = document.getElementById('scrapCostChart').getContext('2d');
+            
+            // Check if we have data
+            if (!filteredData.length) {
+                renderNoDataMessage(ctx, 'No scrap cost data available for the selected filters');
+                return;
+            }
+            
+            // Prepare data
+            const labels = filteredData.map(item => formatDate(item.Date));
+            const scrapCostValues = filteredData.map(item => item['Scrap Cost as % of Production Value']);
+            
+            // Destroy existing chart if it exists
+            if (scrapCostChart) {
+                scrapCostChart.destroy();
+            }
+            
+            // Create new chart
+            scrapCostChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Scrap Cost %',
+                            data: scrapCostValues,
+                            backgroundColor: config.chartsDefaultColors[3],
+                            borderColor: config.chartsDefaultBorderColors[3],
+                            borderWidth: 2,
+                            tension: 0.1,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            backgroundColor: config.tooltipBackgroundColor,
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw || 0;
+                                    return `Scrap Cost: ${value}% of Production Value`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Percentage (%)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCostMetricsChart() {
+            const ctx = document.getElementById('costMetricsChart').getContext('2d');
+            
+            // Check if we have data
+            if (!filteredData.length) {
+                renderNoDataMessage(ctx, 'No cost data available for the selected filters');
+                return;
+            }
+            
+            // Prepare data
+            const labels = filteredData.map(item => formatDate(item.Date));
+            
+            // Values based on current view mode
+            let values;
+            let label;
+            
+            if (costViewMode === 'staff') {
+                values = filteredData.map(item => item['Staff Cost']);
+                label = 'Staff Cost';
+            } else {
+                values = filteredData.map(item => item['Cost Per Unit']);
+                label = 'Cost Per Unit';
+            }
+            
+            // Destroy existing chart if it exists
+            if (costMetricsChart) {
+                costMetricsChart.destroy();
+            }
+            
+            // Create new chart
+            costMetricsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: label,
+                            data: values,
+                            backgroundColor: config.chartsDefaultColors[4],
+                            borderColor: config.chartsDefaultBorderColors[4],
+                            borderWidth: 2,
+                            tension: 0.1,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            backgroundColor: config.tooltipBackgroundColor,
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw || 0;
+                                    return `${label}: ${value}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: costViewMode === 'staff' ? 'Cost' : 'Cost Per Unit'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // UI utilities
+        function renderNoDataMessage(ctx, message) {
+            // Clear the canvas
+            const canvas = ctx.canvas;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw message
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = '14px Arial';
+            ctx.fillStyle = '#95a5a6';
+            ctx.fillText(message, canvas.width / 2, canvas.height / 2);
+        }
+
+        function showLoader() {
+            loaderContainer.style.display = 'flex';
+        }
+
+        function hideLoader() {
+            loaderContainer.style.display = 'none';
+        }
+
+        // Event listeners
+        function setupEventListeners() {
+            // Apply filters button
+            applyFiltersBtn.addEventListener('click', applyFilters);
+            
+            // Toggle production view
+            toggleProductionViewBtn.addEventListener('click', () => {
+                productionViewMode = productionViewMode === 'devices' ? 'boxes' : 'devices';
+                toggleProductionViewBtn.innerHTML = `<i class="fas fa-exchange-alt"></i> Show ${productionViewMode === 'devices' ? 'Boxes' : 'Devices'}`;
+                updateProductionChart();
+            });
+            
+            // Toggle rejects view
+            rejectsByQtyBtn.addEventListener('click', () => {
+                rejectsViewMode = 'qty';
+                rejectsByQtyBtn.classList.add('active');
+                rejectsByCostBtn.classList.remove('active');
+                updateRejectsList();
+            });
+            
+            rejectsByCostBtn.addEventListener('click', () => {
+                rejectsViewMode = 'cost';
+                rejectsByCostBtn.classList.add('active');
+                rejectsByQtyBtn.classList.remove('active');
+                updateRejectsList();
+            });
+            
+            // Toggle cost metrics view
+            showStaffCostBtn.addEventListener('click', () => {
+                costViewMode = 'staff';
+                showStaffCostBtn.classList.add('active');
+                showCostPerUnitBtn.classList.remove('active');
+                updateCostMetricsChart();
+            });
+            
+            showCostPerUnitBtn.addEventListener('click', () => {
+                costViewMode = 'unit';
+                showCostPerUnitBtn.classList.add('active');
+                showStaffCostBtn.classList.remove('active');
+                updateCostMetricsChart();
+            });
+        }
+
+        // Initialization
+        function init() {
+            setupEventListeners();
+            fetchData();
+        }
+
+        // Start the application when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
