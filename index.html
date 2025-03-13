@@ -2632,46 +2632,57 @@
             }
         }
 
-        function addOutlierAnnotations(chartId, outlierData, chartData) {
-// Clear any existing annotations
-const chartContainer = document.getElementById(chartId).closest('.chart-container');
-chartContainer.querySelectorAll('.annotation').forEach(el => el.remove());
-            
-            // Get the chart container
-            const container = document.getElementById(chartId).closest('.chart-container');
-            const chart = window[chartId.replace('Chart', 'Chart')]; // Get the chart object
-            
-            // Add annotations for each outlier
-            outlierData.forEach(outlier => {
-                // Find corresponding data point in chart data
-                const index = chartData.findIndex(item => item.Date === outlier.date);
-                if (index === -1) return;
-                
-                // Get chart position
-                const meta = chart.getDatasetMeta(0);
-                if (!meta.data[index]) return;
-                
-                const box = meta.data[index].getCenterPoint();
-                
-                // Create annotation element
-                const annotation = document.createElement('div');
-                annotation.className = 'annotation';
-                annotation.style.top = `${box.y - 50}px`;
-                annotation.style.left = `${box.x}px`;
-                
-                // Determine badge class
-                const badgeClass = outlier.isHigh ? 'badge-success' : 'badge-danger';
-                const icon = outlier.isHigh ? '↑' : '↓';
-                
-                // Format annotation content
-                annotation.innerHTML = `
-                    <span class="badge ${badgeClass}">${icon} Outlier</span>
-                `;
-                
-                // Add to container
-                container.appendChild(annotation);
-            });
-        }
+function addOutlierAnnotations(chartId, outlierData, chartData) {
+    // Clear any existing annotations
+    const chartContainer = document.getElementById(chartId).closest('.chart-container');
+    chartContainer.querySelectorAll('.annotation').forEach(el => el.remove());
+    
+    // Get the chart object based on chartId
+    let chart;
+    if (chartId === 'scheduleAttainmentChart') {
+        chart = scheduleAttainmentChart;
+    } else if (chartId === 'scrapCostChart') {
+        chart = scrapCostChart;
+    } else if (chartId === 'costMetricsChart') {
+        chart = costMetricsChart;
+    } else if (chartId === 'productionChart') {
+        chart = productionChart;
+    }
+    
+    // Only proceed if we have a valid chart
+    if (!chart) return;
+    
+    // Add annotations for each outlier
+    outlierData.forEach(outlier => {
+        // Find corresponding data point in chart data
+        const index = chartData.findIndex(item => item.Date === outlier.date);
+        if (index === -1) return;
+        
+        // Get chart position
+        const meta = chart.getDatasetMeta(0);
+        if (!meta.data[index]) return;
+        
+        const box = meta.data[index].getCenterPoint();
+        
+        // Create annotation element
+        const annotation = document.createElement('div');
+        annotation.className = 'annotation';
+        annotation.style.top = `${box.y - 50}px`;
+        annotation.style.left = `${box.x}px`;
+        
+        // Determine badge class
+        const badgeClass = outlier.isHigh ? 'badge-success' : 'badge-danger';
+        const icon = outlier.isHigh ? '↑' : '↓';
+        
+        // Format annotation content
+        annotation.innerHTML = `
+            <span class="badge ${badgeClass}">${icon} Outlier</span>
+        `;
+        
+        // Add to container
+        chartContainer.appendChild(annotation);
+    });
+}
 
         function updateRejectRateChart() {
             const ctx = document.getElementById('rejectRateChart').getContext('2d');
