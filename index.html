@@ -2633,8 +2633,9 @@
         }
 
         function addOutlierAnnotations(chartId, outlierData, chartData) {
-            // Clear any existing annotations
-            document.querySelectorAll(`#${chartId}`).closest('.chart-container').querySelectorAll('.annotation').forEach(el => el.remove());
+// Clear any existing annotations
+const chartContainer = document.getElementById(chartId).closest('.chart-container');
+chartContainer.querySelectorAll('.annotation').forEach(el => el.remove());
             
             // Get the chart container
             const container = document.getElementById(chartId).closest('.chart-container');
