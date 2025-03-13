@@ -256,14 +256,15 @@
             white-space: nowrap;
         }
 
+        /* Fixed input colors for better readability */
         .filter-group select, 
         .filter-group input {
             padding: 0.3rem 0.5rem;
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: var(--border-radius);
-            background-color: rgba(255, 255, 255, 0.1);
+            background-color: rgba(255, 255, 255, 0.8);
             font-size: 0.8rem;
-            color: white;
+            color: var(--dark-color);
             transition: var(--transition);
         }
 
@@ -271,24 +272,25 @@
         .filter-group input:focus {
             outline: none;
             border-color: var(--primary-color);
-            background-color: rgba(255, 255, 255, 0.2);
+            background-color: white;
         }
 
-        /* KPI Summary Row */
+        /* KPI Summary Row - Modified for 3 KPI cards only and more compact */
         .kpi-summary {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 0.7rem;
-            padding: 0.7rem;
+            padding: 0.5rem;
             background-color: #fff;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            max-height: 85px;
         }
 
         .kpi-card {
             background-color: white;
             border-radius: var(--border-radius);
             box-shadow: var(--shadow);
-            padding: 0.7rem;
+            padding: 0.5rem;
             display: flex;
             flex-direction: column;
             position: relative;
@@ -298,7 +300,7 @@
         }
 
         .kpi-card:hover {
-            transform: translateY(-3px);
+            transform: translateY(-2px);
         }
 
         .kpi-card.good {
@@ -318,20 +320,20 @@
         }
 
         .kpi-title {
-            font-size: 0.8rem;
+            font-size: 0.7rem;
             color: var(--gray-color);
-            margin-bottom: 0.3rem;
+            margin-bottom: 0.2rem;
         }
 
         .kpi-value {
-            font-size: 1.3rem;
+            font-size: 1.1rem;
             font-weight: bold;
             display: flex;
             align-items: baseline;
         }
 
         .kpi-value .trend-indicator {
-            font-size: 0.8rem;
+            font-size: 0.7rem;
             margin-left: 0.5rem;
             display: flex;
             align-items: center;
@@ -350,18 +352,17 @@
         }
 
         .kpi-comparison {
-            font-size: 0.7rem;
+            font-size: 0.6rem;
             color: var(--gray-color);
             display: flex;
             align-items: center;
-            margin-top: 0.2rem;
         }
 
         .kpi-progress {
             height: 3px;
             width: 100%;
             background-color: var(--light-color);
-            margin-top: 0.5rem;
+            margin-top: 0.3rem;
             border-radius: 2px;
             overflow: hidden;
         }
@@ -388,11 +389,12 @@
             position: absolute;
             bottom: 0;
             right: 0;
-            width: 70px;
-            height: 25px;
+            width: 50px;
+            height: 20px;
             opacity: 0.3;
         }
 
+        /* Modified for better visibility of all 3 graphs */
         .dashboard {
             flex: 1;
             display: grid;
@@ -401,6 +403,7 @@
             gap: 0.7rem;
             padding: 0.7rem;
             overflow: auto;
+            max-height: calc(100vh - 85px - 50px); /* Adjusted to account for smaller KPI cards */
         }
 
         .card {
@@ -747,6 +750,11 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Added separate Apply button for Product/Variant filters -->
+                <button id="applyProductFilters" class="btn btn-primary">
+                    <i class="fas fa-filter"></i> Apply
+                </button>
             </div>
             
             <div class="date-controls">
@@ -772,15 +780,15 @@
                         </div>
                     </div>
                 </div>
-                <button id="applyFilters" class="btn btn-primary">
-                    <i class="fas fa-filter"></i> Apply
+                <button id="applyDateFilters" class="btn btn-primary">
+                    <i class="fas fa-calendar"></i> Apply
                 </button>
             </div>
         </div>
     </div>
     
     <div class="kpi-summary" id="kpiSummary">
-        <!-- KPI cards will be added dynamically -->
+        <!-- KPI cards will be added dynamically (only 3 now) -->
     </div>
     
     <main class="dashboard">
@@ -925,6 +933,10 @@
                 good: 5, // <= 5% is good (green)
                 warning: 15 // <= 15% is warning (yellow), > 15% is danger (red)
             },
+            downtimeThresholds: {
+                good: 30, // <= 30 min is good (green)
+                warning: 120 // <= 120 min is warning (yellow), > 120 min is danger (red)
+            },
             outlierThreshold: 2.0, // Standard deviations from mean to consider an outlier
             animationDuration: 800,
             tooltipBackgroundColor: 'rgba(0, 0, 0, 0.7)',
@@ -933,7 +945,8 @@
             tooltipBorderColor: 'rgba(255, 255, 255, 0.2)',
             tooltipBorderWidth: 1,
             maxPointsBeforeAggregation: 30, // Auto-aggregate if more points
-            defaultDataPeriod: 'daily' // 'daily', 'weekly', 'monthly'
+            defaultDataPeriod: 'daily', // 'daily', 'weekly', 'monthly'
+            currencySymbol: 'R' // Changed from $ to R (Rand)
         };
 
         // Global variables
@@ -964,7 +977,8 @@
         const dateToInput = document.getElementById('dateTo');
         const dateFromPresets = document.getElementById('dateFromPresets');
         const dateToPresets = document.getElementById('dateToPresets');
-        const applyFiltersBtn = document.getElementById('applyFilters');
+        const applyDateFiltersBtn = document.getElementById('applyDateFilters');
+        const applyProductFiltersBtn = document.getElementById('applyProductFilters');
         const toggleProductionViewBtn = document.getElementById('toggleProductionView');
         const rejectsByQtyBtn = document.getElementById('rejectsByQty');
         const rejectsByCostBtn = document.getElementById('rejectsByCost');
@@ -2164,7 +2178,7 @@
             });
         }
 
-        // KPI Summary
+        // KPI Summary - Now only showing Schedule Attainment, Scrap Cost, and Downtime
         function updateKPISummary() {
             kpiSummary.innerHTML = '';
             
@@ -2179,21 +2193,15 @@
             // Calculate KPI metrics
             const currentPeriod = {
                 attainment: calculateAverage(filteredData, 'Schedule Attainment'),
-                production: calculateSum(filteredData, 'Actual Devices Produced'),
-                target: calculateSum(filteredData, 'Theoretical Target (Devices)'),
                 scrapCost: calculateAverage(filteredData, 'Scrap Cost as % of Production Value'),
-                costPerUnit: calculateAverage(filteredData, 'Cost Per Unit')
+                downtime: calculateSum(filteredData, 'Downtime Duration (min)')
             };
             
             const previousPeriod = {
                 attainment: calculateAverage(previousPeriodData, 'Schedule Attainment'),
-                production: calculateSum(previousPeriodData, 'Actual Devices Produced'),
-                target: calculateSum(previousPeriodData, 'Theoretical Target (Devices)'),
                 scrapCost: calculateAverage(previousPeriodData, 'Scrap Cost as % of Production Value'),
-                costPerUnit: calculateAverage(previousPeriodData, 'Cost Per Unit')
+                downtime: calculateSum(previousPeriodData, 'Downtime Duration (min)')
             };
-            
-            // Create KPI cards
             
             // 1. Schedule Attainment
             createKPICard(
@@ -2207,38 +2215,7 @@
                 getAttainmentSparklineData()
             );
             
-            // 2. Production vs Target
-            createKPICard(
-                'Production vs Target',
-                currentPeriod.production ? `${Math.round(currentPeriod.production)}/${Math.round(currentPeriod.target || 0)}` : 'N/A',
-                currentPeriod.production ? (currentPeriod.production / currentPeriod.target) * 100 : null,
-                previousPeriod.production ? (previousPeriod.production / previousPeriod.target) * 100 : null,
-                formatTrendIndicator(
-                    currentPeriod.production ? (currentPeriod.production / currentPeriod.target) * 100 : null,
-                    previousPeriod.production ? (previousPeriod.production / previousPeriod.target) * 100 : null
-                ),
-                `Target: ${Math.round(currentPeriod.target || 0)} units`,
-                currentPeriod.production && currentPeriod.target ? 
-                    getStatusClass((currentPeriod.production / currentPeriod.target) * 100, config.scheduleAttainmentThresholds) : 'neutral',
-                getProductionSparklineData()
-            );
-            
-            // 3. Units Per Labor Hour
-            const unitsPerHour = calculateAverage(filteredData, 'Units Per Labor Hour');
-            const prevUnitsPerHour = calculateAverage(previousPeriodData, 'Units Per Labor Hour');
-            
-            createKPICard(
-                'Units Per Labor Hour',
-                unitsPerHour ? unitsPerHour.toFixed(1) : 'N/A',
-                unitsPerHour,
-                prevUnitsPerHour,
-                formatTrendIndicator(unitsPerHour, prevUnitsPerHour),
-                `vs. Previous: ${prevUnitsPerHour ? prevUnitsPerHour.toFixed(1) : 'N/A'}`,
-                'neutral',
-                getUnitsPerHourSparklineData()
-            );
-            
-            // 4. Scrap Cost
+            // 2. Scrap Cost
             createKPICard(
                 'Scrap Cost %',
                 currentPeriod.scrapCost ? currentPeriod.scrapCost.toFixed(1) + '%' : 'N/A',
@@ -2250,16 +2227,16 @@
                 getScrapCostSparklineData()
             );
             
-            // 5. Cost Per Unit
+            // 3. Total Downtime (New)
             createKPICard(
-                'Cost Per Unit',
-                currentPeriod.costPerUnit ? '$' + currentPeriod.costPerUnit.toFixed(2) : 'N/A',
-                currentPeriod.costPerUnit,
-                previousPeriod.costPerUnit,
-                formatTrendIndicator(currentPeriod.costPerUnit, previousPeriod.costPerUnit, true),
-                `vs. Previous: ${previousPeriod.costPerUnit ? '$' + previousPeriod.costPerUnit.toFixed(2) : 'N/A'}`,
-                'neutral',
-                getCostPerUnitSparklineData()
+                'Total Downtime',
+                currentPeriod.downtime ? `${Math.round(currentPeriod.downtime)} min` : 'N/A',
+                currentPeriod.downtime,
+                previousPeriod.downtime,
+                formatTrendIndicator(currentPeriod.downtime, previousPeriod.downtime, true),
+                `vs. Previous: ${previousPeriod.downtime ? Math.round(previousPeriod.downtime) + ' min' : 'N/A'}`,
+                currentPeriod.downtime ? getStatusClass(currentPeriod.downtime, config.downtimeThresholds, true) : 'neutral',
+                getDowntimeSparklineData()
             );
         }
 
@@ -2296,21 +2273,6 @@
                 .map(val => parseFloat(val));
         }
 
-        function getProductionSparklineData() {
-            return filteredData.map(item => {
-                const actual = parseFloat(item['Actual Devices Produced'] || 0);
-                const target = parseFloat(item['Theoretical Target (Devices)'] || 1); // Avoid div by zero
-                return (actual / target) * 100;
-            });
-        }
-
-        function getUnitsPerHourSparklineData() {
-            return filteredData
-                .map(item => item['Units Per Labor Hour'])
-                .filter(val => val !== undefined && val !== null && !isNaN(parseFloat(val)))
-                .map(val => parseFloat(val));
-        }
-
         function getScrapCostSparklineData() {
             return filteredData
                 .map(item => item['Scrap Cost as % of Production Value'])
@@ -2318,9 +2280,9 @@
                 .map(val => parseFloat(val));
         }
 
-        function getCostPerUnitSparklineData() {
+        function getDowntimeSparklineData() {
             return filteredData
-                .map(item => item['Cost Per Unit'])
+                .map(item => item['Downtime Duration (min)'])
                 .filter(val => val !== undefined && val !== null && !isNaN(parseFloat(val)))
                 .map(val => parseFloat(val));
         }
@@ -2350,7 +2312,7 @@
                              statusClass === 'danger' ? '#e74c3c' : 
                              '#3498db';
                 
-                sparkline = generateSparkline(sparklineData, 70, 25, color);
+                sparkline = generateSparkline(sparklineData, 50, 20, color);
             }
             
             // Construct card HTML
@@ -2486,7 +2448,8 @@
                                     const label = context.dataset.label || '';
                                     const value = context.raw || 0;
                                     const formattedValue = Math.round(value).toLocaleString();
-                                    return `${label}: ${formattedValue} ${productionViewMode === 'devices' ? 'Devices' : 'Boxes'}`;
+                                    return `${label}: ${formattedValue} ${production
+                                                                          ViewMode === 'devices' ? 'Devices' : 'Boxes'}`;
                                 }
                             }
                         },
@@ -2948,7 +2911,7 @@
                 
                 const reasonDiv = document.createElement('div');
                 reasonDiv.className = 'reject-reason';
-                reasonDiv.innerHTML = `${index + 1}. ${truncateString(reject.reason, 20)} <span class="badge ${badgeClass}">${rejectsViewMode === 'qty' ? reject.qty : '$' + reject.cost.toFixed(2)}</span>`;
+                reasonDiv.innerHTML = `${index + 1}. ${truncateString(reject.reason, 20)} <span class="badge ${badgeClass}">${rejectsViewMode === 'qty' ? reject.qty : config.currencySymbol + reject.cost.toFixed(2)}</span>`;
                 
                 const detailsDiv = document.createElement('div');
                 detailsDiv.className = 'reject-details';
@@ -2960,7 +2923,7 @@
                 qtySpan.textContent = `QTY: ${reject.qty}`;
                 
                 const costSpan = document.createElement('span');
-                costSpan.textContent = `Cost: $${reject.cost.toFixed(2)}`;
+                costSpan.textContent = `Cost: ${config.currencySymbol}${reject.cost.toFixed(2)}`;
                 
                 detailsDiv.appendChild(stationSpan);
                 detailsDiv.appendChild(qtySpan);
@@ -3054,7 +3017,7 @@
                     durationSpan.textContent = `${Math.round(item.duration)} min`;
                     
                     const costSpan = document.createElement('span');
-                    costSpan.textContent = `$${item.cost.toFixed(2)}`;
+                    costSpan.textContent = `${config.currencySymbol}${item.cost.toFixed(2)}`;
                     
                     detailsDiv.appendChild(machineSpan);
                     detailsDiv.appendChild(durationSpan);
@@ -3115,7 +3078,7 @@
                     durationSpan.textContent = `${Math.round(item.duration)} min`;
                     
                     const costSpan = document.createElement('span');
-                    costSpan.textContent = `$${item.cost.toFixed(2)}`;
+                    costSpan.textContent = `${config.currencySymbol}${item.cost.toFixed(2)}`;
                     
                     detailsDiv.appendChild(reasonSpan);
                     detailsDiv.appendChild(durationSpan);
@@ -3177,7 +3140,7 @@
                     countSpan.textContent = `Occurrences: ${item.count}`;
                     
                     const costSpan = document.createElement('span');
-                    costSpan.textContent = `Cost: $${item.cost.toFixed(2)}`;
+                    costSpan.textContent = `Cost: ${config.currencySymbol}${item.cost.toFixed(2)}`;
                     
                     detailsDiv.appendChild(machineSpan);
                     detailsDiv.appendChild(countSpan);
@@ -3382,7 +3345,7 @@
                     ctx.fillStyle = 'rgba(155, 89, 182, 0.8)';
                     ctx.font = '11px Arial';
                     ctx.textAlign = 'left';
-                    ctx.fillText(`Avg: ${avgValue.toFixed(2)}`, left + 5, avgY - 5);
+                    ctx.fillText(`Avg: ${config.currencySymbol}${avgValue.toFixed(2)}`, left + 5, avgY - 5);
                 }
             };
             
@@ -3416,7 +3379,7 @@
                             callbacks: {
                                 label: function(context) {
                                     const value = context.raw || 0;
-                                    return `${label}: ${costViewMode === 'staff' ? '' : '$'}${value.toFixed(2)}`;
+                                    return `${label}: ${config.currencySymbol}${value.toFixed(2)}`;
                                 },
                                 afterLabel: function(context) {
                                     const value = context.raw || 0;
@@ -3480,8 +3443,11 @@
 
         // Event listeners
         function setupEventListeners() {
-            // Apply filters button
-            applyFiltersBtn.addEventListener('click', applyFilters);
+            // Apply date filters button
+            applyDateFiltersBtn.addEventListener('click', applyFilters);
+            
+            // Apply product filters button (new)
+            applyProductFiltersBtn.addEventListener('click', applyFilters);
             
             // Toggle production view
             toggleProductionViewBtn.addEventListener('click', () => {
