@@ -38,58 +38,67 @@
             overflow: hidden;
         }
 
-        .header {
+        .header-controls {
             background-color: var(--dark-color);
             color: white;
-            padding: 1rem;
-            text-align: center;
+            padding: 0.5rem 1rem;
             box-shadow: var(--shadow);
             position: relative;
             z-index: 10;
-        }
-
-        .header h1 {
-            margin: 0;
-            font-size: 1.5rem;
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: space-between;
         }
 
-        .header h1 i {
+        .header-title {
+            display: flex;
+            align-items: center;
+            font-size: 1.3rem;
+            font-weight: bold;
+            white-space: nowrap;
+            margin-right: 1rem;
+        }
+
+        .header-title i {
             margin-right: 10px;
         }
 
-        .controls {
+        .date-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-row {
             background-color: white;
-            padding: 1rem;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            align-items: end;
+            padding: 0.5rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             box-shadow: var(--shadow);
             z-index: 5;
         }
 
         .filter-group {
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .filter-group label {
             font-weight: 600;
-            margin-bottom: 0.3rem;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             color: var(--secondary-color);
+            white-space: nowrap;
         }
 
         .filter-group select, 
         .filter-group input {
-            padding: 0.5rem;
+            padding: 0.4rem;
             border: 1px solid #ddd;
             border-radius: var(--border-radius);
             background-color: white;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             transition: var(--transition);
         }
 
@@ -105,8 +114,8 @@
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             grid-template-rows: repeat(2, 1fr);
-            gap: 1rem;
-            padding: 1rem;
+            gap: 0.7rem;
+            padding: 0.7rem;
             overflow: auto;
         }
 
@@ -114,7 +123,7 @@
             background-color: white;
             border-radius: var(--border-radius);
             box-shadow: var(--shadow);
-            padding: 1rem;
+            padding: 0.7rem;
             overflow: hidden;
             display: flex;
             flex-direction: column;
@@ -126,18 +135,18 @@
             align-items: center;
             margin-bottom: 0.5rem;
             border-bottom: 1px solid #eee;
-            padding-bottom: 0.5rem;
+            padding-bottom: 0.3rem;
         }
 
         .card-title {
             font-weight: 600;
-            font-size: 1rem;
+            font-size: 0.9rem;
             color: var(--secondary-color);
         }
 
         .card-actions {
             display: flex;
-            gap: 0.5rem;
+            gap: 0.3rem;
         }
 
         .btn {
@@ -149,6 +158,7 @@
             cursor: pointer;
             transition: var(--transition);
             color: var(--dark-color);
+            white-space: nowrap;
         }
 
         .btn-primary {
@@ -182,6 +192,7 @@
             align-items: center;
             justify-content: center;
             position: relative;
+            min-height: 0;
         }
 
         .tooltip {
@@ -232,6 +243,7 @@
             width: 100%;
             height: 100%;
             position: relative;
+            min-height: 0;
         }
 
         /* Specific card sizes */
@@ -283,6 +295,18 @@
                 grid-template-columns: repeat(2, 1fr);
                 grid-template-rows: auto;
             }
+            
+            .header-controls, .filter-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+                padding: 0.5rem;
+            }
+            
+            .date-controls, .filter-group {
+                width: 100%;
+                justify-content: space-between;
+            }
         }
 
         @media (max-width: 768px) {
@@ -310,37 +334,40 @@
         <div class="loader"></div>
     </div>
     
-    <header class="header">
-        <h1><i class="fas fa-industry"></i> Production Operations Dashboard</h1>
-    </header>
+    <div class="header-controls">
+        <div class="header-title">
+            <i class="fas fa-industry"></i> Production Operations Dashboard
+        </div>
+        <div class="date-controls">
+            <div class="filter-group">
+                <label for="dateFrom">From:</label>
+                <input type="date" id="dateFrom">
+            </div>
+            <div class="filter-group">
+                <label for="dateTo">To:</label>
+                <input type="date" id="dateTo">
+            </div>
+            <button id="applyDates" class="btn btn-primary">
+                <i class="fas fa-calendar-check"></i> Apply Dates
+            </button>
+        </div>
+    </div>
     
-    <section class="controls">
+    <div class="filter-row">
         <div class="filter-group">
-            <label for="dateFrom">Date From</label>
-            <input type="date" id="dateFrom">
-        </div>
-        <div class="filter-group">
-            <label for="dateTo">Date To</label>
-            <input type="date" id="dateTo">
-        </div>
-        <div class="filter-group">
-            <label for="productFilter">Product</label>
+            <label for="productFilter">Product:</label>
             <select id="productFilter">
                 <option value="all">All Products</option>
             </select>
-        </div>
-        <div class="filter-group">
-            <label for="variantFilter">Variant</label>
+            <label for="variantFilter">Variant:</label>
             <select id="variantFilter">
                 <option value="all">All Variants</option>
             </select>
         </div>
-        <div class="filter-group">
-            <button id="applyFilters" class="btn btn-primary">
-                <i class="fas fa-filter"></i> Apply Filters
-            </button>
-        </div>
-    </section>
+        <button id="applyFilters" class="btn btn-primary">
+            <i class="fas fa-filter"></i> Apply Filters
+        </button>
+    </div>
     
     <main class="dashboard">
         <div class="card double-width">
@@ -466,6 +493,7 @@
         const productFilter = document.getElementById('productFilter');
         const variantFilter = document.getElementById('variantFilter');
         const applyFiltersBtn = document.getElementById('applyFilters');
+        const applyDatesBtn = document.getElementById('applyDates');
         const toggleProductionViewBtn = document.getElementById('toggleProductionView');
         const rejectsByQtyBtn = document.getElementById('rejectsByQty');
         const rejectsByCostBtn = document.getElementById('rejectsByCost');
@@ -620,6 +648,11 @@
                 option.textContent = variant;
                 variantFilter.appendChild(option);
             });
+        }
+
+        function applyDateFilters() {
+            showLoader();
+            applyFilters(); // This will handle both date and product/variant filters
         }
 
         function applyFilters() {
@@ -1127,8 +1160,9 @@
 
         // Event listeners
         function setupEventListeners() {
-            // Apply filters button
+            // Apply filters buttons
             applyFiltersBtn.addEventListener('click', applyFilters);
+            applyDatesBtn.addEventListener('click', applyDateFilters);
             
             // Toggle production view
             toggleProductionViewBtn.addEventListener('click', () => {
