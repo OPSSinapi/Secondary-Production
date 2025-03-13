@@ -102,11 +102,41 @@
             transition: var(--transition);
         }
 
+        .filter-group select {
+            min-width: 150px;
+            height: auto;
+        }
+
+        .filter-group select[multiple] {
+            height: 100px;
+            overflow-y: auto;
+        }
+
         .filter-group select:focus, 
         .filter-group input:focus {
             outline: none;
             border-color: var(--primary-color);
             box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+
+        .filter-group .select-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .filter-group .select-wrapper .selected-count {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background-color: var(--primary-color);
+            color: white;
+            font-size: 0.7rem;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .dashboard {
@@ -193,6 +223,8 @@
             justify-content: center;
             position: relative;
             min-height: 0;
+            max-height: 100%;
+            overflow: hidden;
         }
 
         .tooltip {
@@ -244,6 +276,9 @@
             height: 100%;
             position: relative;
             min-height: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         /* Specific card sizes */
@@ -287,6 +322,30 @@
             text-align: center;
             color: var(--gray-color);
             font-style: italic;
+        }
+
+        .period-controls {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            z-index: 10;
+            display: flex;
+            gap: 3px;
+        }
+
+        .period-btn {
+            font-size: 0.7rem;
+            padding: 0.1rem 0.3rem;
+            background-color: rgba(255, 255, 255, 0.7);
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .period-btn.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
         }
 
         /* Mobile responsiveness */
@@ -356,13 +415,19 @@
     <div class="filter-row">
         <div class="filter-group">
             <label for="productFilter">Product:</label>
-            <select id="productFilter">
-                <option value="all">All Products</option>
-            </select>
+            <div class="select-wrapper">
+                <select id="productFilter" multiple>
+                    <option value="all">All Products</option>
+                </select>
+                <div class="selected-count" id="productCount" style="display: none;">0</div>
+            </div>
             <label for="variantFilter">Variant:</label>
-            <select id="variantFilter">
-                <option value="all">All Variants</option>
-            </select>
+            <div class="select-wrapper">
+                <select id="variantFilter" multiple>
+                    <option value="all">All Variants</option>
+                </select>
+                <div class="selected-count" id="variantCount" style="display: none;">0</div>
+            </div>
         </div>
         <button id="applyFilters" class="btn btn-primary">
             <i class="fas fa-filter"></i> Apply Filters
@@ -380,6 +445,11 @@
                 </div>
             </div>
             <div class="card-body">
+                <div class="period-controls" id="productionPeriodControls">
+                    <button class="period-btn active" data-period="daily">Daily</button>
+                    <button class="period-btn" data-period="weekly">Weekly</button>
+                    <button class="period-btn" data-period="monthly">Monthly</button>
+                </div>
                 <div class="chart-container">
                     <canvas id="productionChart"></canvas>
                 </div>
@@ -391,6 +461,11 @@
                 <div class="card-title">Schedule Attainment</div>
             </div>
             <div class="card-body">
+                <div class="period-controls" id="scheduleAttainmentPeriodControls">
+                    <button class="period-btn active" data-period="daily">Daily</button>
+                    <button class="period-btn" data-period="weekly">Weekly</button>
+                    <button class="period-btn" data-period="monthly">Monthly</button>
+                </div>
                 <div class="chart-container">
                     <canvas id="scheduleAttainmentChart"></canvas>
                 </div>
@@ -428,6 +503,11 @@
                 <div class="card-title">Scrap Cost % of Production Value</div>
             </div>
             <div class="card-body">
+                <div class="period-controls" id="scrapCostPeriodControls">
+                    <button class="period-btn active" data-period="daily">Daily</button>
+                    <button class="period-btn" data-period="weekly">Weekly</button>
+                    <button class="period-btn" data-period="monthly">Monthly</button>
+                </div>
                 <div class="chart-container">
                     <canvas id="scrapCostChart"></canvas>
                 </div>
@@ -443,6 +523,11 @@
                 </div>
             </div>
             <div class="card-body">
+                <div class="period-controls" id="costMetricsPeriodControls">
+                    <button class="period-btn active" data-period="daily">Daily</button>
+                    <button class="period-btn" data-period="weekly">Weekly</button>
+                    <button class="period-btn" data-period="monthly">Monthly</button>
+                </div>
                 <div class="chart-container">
                     <canvas id="costMetricsChart"></canvas>
                 </div>
@@ -472,7 +557,9 @@
             tooltipTitleColor: '#ffffff',
             tooltipBodyColor: '#ffffff',
             tooltipBorderColor: 'rgba(255, 255, 255, 0.2)',
-            tooltipBorderWidth: 1
+            tooltipBorderWidth: 1,
+            maxPointsBeforeAggregation: 30, // Auto-aggregate if more points
+            defaultDataPeriod: 'daily' // 'daily', 'weekly', 'monthly'
         };
 
         // Global variables
@@ -486,6 +573,14 @@
         let productionViewMode = 'devices'; // 'devices' or 'boxes'
         let rejectsViewMode = 'qty'; // 'qty' or 'cost'
         let costViewMode = 'staff'; // 'staff' or 'unit'
+        
+        // Data period tracking
+        const chartPeriods = {
+            production: 'daily',
+            scheduleAttainment: 'daily',
+            scrapCost: 'daily',
+            costMetrics: 'daily'
+        };
 
         // DOM elements
         const dateFromInput = document.getElementById('dateFrom');
@@ -501,6 +596,8 @@
         const showCostPerUnitBtn = document.getElementById('showCostPerUnit');
         const rejectsList = document.getElementById('rejectsList');
         const loaderContainer = document.getElementById('loaderContainer');
+        const productCount = document.getElementById('productCount');
+        const variantCount = document.getElementById('variantCount');
 
         // Helper functions
         function formatDate(dateString) {
@@ -541,13 +638,31 @@
                 return [];
             }
 
-            return record['Reject Rate by Station'].split(', ').map(item => {
-                const [station, rate] = item.split(': ');
-                return {
-                    station,
-                    rate: parseFloat(rate.replace('%', ''))
-                };
-            }).sort((a, b) => b.rate - a.rate).slice(0, 3);
+            try {
+                // Split by commas, but be careful about commas within quotes
+                const stations = record['Reject Rate by Station'].split(', ');
+                
+                return stations.map(item => {
+                    const colonIndex = item.lastIndexOf(':');
+                    if (colonIndex === -1) return null;
+                    
+                    const station = item.substring(0, colonIndex).trim();
+                    const rateStr = item.substring(colonIndex + 1).trim();
+                    const rate = parseFloat(rateStr.replace('%', ''));
+                    
+                    if (isNaN(rate)) return null;
+                    
+                    return {
+                        station,
+                        rate
+                    };
+                }).filter(Boolean)
+                .sort((a, b) => b.rate - a.rate)
+                .slice(0, 3);
+            } catch (error) {
+                console.error('Error parsing reject rate by station:', error);
+                return [];
+            }
         }
 
         function parseTopRejects(record, type) {
@@ -559,21 +674,237 @@
                 return [];
             }
 
-            return record[field].split(' | ').map(item => {
-                // Parse the format: "1. Reason - Station - QTY: X - Cost: Y"
-                const matches = item.match(/(\d+)\.\s(.*?)\s-\s(.*?)\s-\sQTY:\s(\d+)\s-\sCost:\s([\d.]+)/);
+            try {
+                return record[field].split(' | ').map(item => {
+                    // Parse the format: "1. Reason - Station - QTY: X - Cost: Y"
+                    const matches = item.match(/(\d+)\.\s(.*?)\s-\s(.*?)\s-\sQTY:\s(\d+)\s-\sCost:\s([\d.]+)/);
+                    
+                    if (matches && matches.length >= 6) {
+                        return {
+                            rank: parseInt(matches[1]),
+                            reason: matches[2],
+                            station: matches[3],
+                            qty: parseInt(matches[4]),
+                            cost: parseFloat(matches[5])
+                        };
+                    }
+                    return null;
+                }).filter(Boolean);
+            } catch (error) {
+                console.error('Error parsing top rejects:', error);
+                return [];
+            }
+        }
+
+        // Data aggregation functions
+        function aggregateDataByPeriod(data, period) {
+            if (period === 'daily' || !data || data.length === 0) {
+                return data;
+            }
+            
+            // Group by week or month
+            const grouped = {};
+            
+            data.forEach(item => {
+                const date = parseDate(item.Date);
+                if (!date) return;
                 
-                if (matches && matches.length >= 6) {
-                    return {
-                        rank: parseInt(matches[1]),
-                        reason: matches[2],
-                        station: matches[3],
-                        qty: parseInt(matches[4]),
-                        cost: parseFloat(matches[5])
+                let periodKey;
+                if (period === 'weekly') {
+                    // Format as YYYY-Www (ISO week)
+                    const year = date.getFullYear();
+                    const week = getWeekNumber(date);
+                    periodKey = `${year}-W${week.toString().padStart(2, '0')}`;
+                } else if (period === 'monthly') {
+                    // Format as YYYY-MM
+                    const year = date.getFullYear();
+                    const month = date.getMonth() + 1;
+                    periodKey = `${year}-${month.toString().padStart(2, '0')}`;
+                }
+                
+                if (!periodKey) return;
+                
+                if (!grouped[periodKey]) {
+                    grouped[periodKey] = {
+                        records: [],
+                        periodStart: period === 'weekly' ? getFirstDayOfWeek(date) : new Date(date.getFullYear(), date.getMonth(), 1)
                     };
                 }
-                return null;
-            }).filter(Boolean);
+                
+                grouped[periodKey].records.push(item);
+            });
+            
+            // Aggregate each group
+            return Object.values(grouped).map(group => {
+                const aggregate = {
+                    Date: group.periodStart.toISOString().split('T')[0],
+                    displayDate: period === 'weekly' 
+                        ? `Week of ${formatDate(group.periodStart)}`
+                        : `${group.periodStart.toLocaleString('default', { month: 'long' })} ${group.periodStart.getFullYear()}`
+                };
+                
+                // Handle numeric fields - take average or sum as appropriate
+                const sumFields = [
+                    'Actual Devices Produced', 
+                    'Actual Boxes Produced',
+                    'Theoretical Target (Devices)',
+                    'Theoretical Target (Boxes)',
+                    'Staff Cost'
+                ];
+                
+                const avgFields = [
+                    'Schedule Attainment',
+                    'Units Per Labor Hour',
+                    'Scrap Cost as % of Production Value',
+                    'Cost Per Unit'
+                ];
+                
+                // Sum the sum fields
+                sumFields.forEach(field => {
+                    const values = group.records
+                        .map(record => record[field])
+                        .filter(val => val !== undefined && val !== null && !isNaN(parseFloat(val)));
+                    
+                    aggregate[field] = values.length 
+                        ? values.reduce((sum, val) => sum + parseFloat(val), 0)
+                        : null;
+                });
+                
+                // Average the avg fields
+                avgFields.forEach(field => {
+                    const values = group.records
+                        .map(record => record[field])
+                        .filter(val => val !== undefined && val !== null && !isNaN(parseFloat(val)));
+                    
+                    aggregate[field] = values.length 
+                        ? values.reduce((sum, val) => sum + parseFloat(val), 0) / values.length
+                        : null;
+                });
+                
+                // Copy non-numeric fields from the first record
+                const firstRecord = group.records[0];
+                if (firstRecord) {
+                    // Copy product and variant fields
+                    aggregate.Product = firstRecord.Product;
+                    aggregate.Variant = firstRecord.Variant;
+                    
+                    // Special handling for reject data
+                    // Get top rejects across all records in the period
+                    const allRejects = {
+                        byQty: [],
+                        byCost: []
+                    };
+                    
+                    group.records.forEach(record => {
+                        const qtyRejects = parseTopRejects(record, 'qty');
+                        const costRejects = parseTopRejects(record, 'cost');
+                        
+                        allRejects.byQty = [...allRejects.byQty, ...qtyRejects];
+                        allRejects.byCost = [...allRejects.byCost, ...costRejects];
+                    });
+                    
+                    // Format aggregated reject data
+                    aggregate['Top Rejects by QTY (Reason - Station - QTY - Cost)'] = 
+                        formatAggregatedRejects(allRejects.byQty, 'qty');
+                    
+                    aggregate['Top Rejects by Cost (Reason - Station - QTY - Cost)'] = 
+                        formatAggregatedRejects(allRejects.byCost, 'cost');
+                    
+                    // Aggregate reject rates
+                    const allRejectRates = [];
+                    group.records.forEach(record => {
+                        const rates = getRejectRateByStation(record);
+                        allRejectRates.push(...rates);
+                    });
+                    
+                    if (allRejectRates.length > 0) {
+                        // Group by station and calculate average rate
+                        const stationRates = {};
+                        allRejectRates.forEach(rate => {
+                            if (!stationRates[rate.station]) {
+                                stationRates[rate.station] = {
+                                    rates: [],
+                                    total: 0,
+                                    count: 0
+                                };
+                            }
+                            stationRates[rate.station].rates.push(rate.rate);
+                            stationRates[rate.station].total += rate.rate;
+                            stationRates[rate.station].count++;
+                        });
+                        
+                        // Format aggregated reject rates
+                        const formattedRates = Object.entries(stationRates)
+                            .map(([station, data]) => {
+                                const avgRate = data.total / data.count;
+                                return `${station}: ${avgRate.toFixed(2)}%`;
+                            })
+                            .join(', ');
+                        
+                        aggregate['Reject Rate by Station'] = formattedRates;
+                    } else {
+                        aggregate['Reject Rate by Station'] = 'No rejects';
+                    }
+                }
+                
+                return aggregate;
+            }).sort((a, b) => parseDate(a.Date) - parseDate(b.Date));
+        }
+
+        function formatAggregatedRejects(rejects, type) {
+            if (!rejects || rejects.length === 0) {
+                return 'No rejects';
+            }
+            
+            // Group by reason and station
+            const grouped = {};
+            
+            rejects.forEach(reject => {
+                const key = `${reject.reason}-${reject.station}`;
+                
+                if (!grouped[key]) {
+                    grouped[key] = {
+                        reason: reject.reason,
+                        station: reject.station,
+                        qty: 0,
+                        cost: 0
+                    };
+                }
+                
+                grouped[key].qty += reject.qty;
+                grouped[key].cost += reject.cost;
+            });
+            
+            // Convert to array and sort
+            const groupedArray = Object.values(grouped);
+            
+            if (type === 'qty') {
+                groupedArray.sort((a, b) => b.qty - a.qty);
+            } else {
+                groupedArray.sort((a, b) => b.cost - a.cost);
+            }
+            
+            // Format top 3
+            return groupedArray.slice(0, 3).map((item, index) => {
+                return `${index+1}. ${item.reason} - ${item.station} - QTY: ${item.qty} - Cost: ${item.cost.toFixed(2)}`;
+            }).join(' | ');
+        }
+
+        function getWeekNumber(date) {
+            const d = new Date(date);
+            d.setHours(0, 0, 0, 0);
+            d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+            const yearStart = new Date(d.getFullYear(), 0, 1);
+            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        }
+
+        function getFirstDayOfWeek(date) {
+            const d = new Date(date);
+            const day = d.getDay() || 7;
+            if (day !== 1) {
+                d.setHours(-24 * (day - 1));
+            }
+            return new Date(d.setHours(0, 0, 0, 0));
         }
 
         // Data fetching and processing
@@ -601,15 +932,6 @@
             // Get unique products
             const products = getUniqueValues(rawData, 'Product');
             
-            // Populate product filter
-            productFilter.innerHTML = '<option value="all">All Products</option>';
-            products.forEach(product => {
-                const option = document.createElement('option');
-                option.value = product;
-                option.textContent = product;
-                productFilter.appendChild(option);
-            });
-            
             // Set default date range to last 5 dates with data
             const dates = rawData.map(item => parseDate(item.Date)).filter(Boolean).sort((a, b) => a - b);
             
@@ -619,34 +941,186 @@
                 dateToInput.valueAsDate = latestDates[latestDates.length - 1];
             }
             
+            // Clear existing options
+            productFilter.innerHTML = '';
+            
+            // Add 'All Products' option
+            const allOption = document.createElement('option');
+            allOption.value = 'all';
+            allOption.textContent = 'All Products';
+            productFilter.appendChild(allOption);
+            
+            // Add product options
+            products.forEach(product => {
+                const option = document.createElement('option');
+                option.value = product;
+                option.textContent = product;
+                productFilter.appendChild(option);
+            });
+            
             // Product filter change event
-            productFilter.addEventListener('change', updateVariantFilter);
+            productFilter.addEventListener('change', updateProductSelection);
             
             // Initialize variant filter
-            updateVariantFilter();
+            updateVariantOptions();
+            
+            // Variant filter change handler
+            variantFilter.addEventListener('change', updateVariantSelection);
+            
+            // Initialize period buttons
+            setupPeriodControls();
         }
 
-        function updateVariantFilter() {
-            const selectedProduct = productFilter.value;
+        function updateProductSelection() {
+            // Update the selection counter
+            const selectedOptions = Array.from(productFilter.selectedOptions);
+            const count = selectedOptions.length;
             
-            // Filter variants based on selected product
+            // Show/hide the counter
+            if (count > 0) {
+                productCount.textContent = count;
+                productCount.style.display = 'flex';
+            } else {
+                productCount.style.display = 'none';
+            }
+            
+            // Handle 'All Products' selection
+            if (selectedOptions.some(option => option.value === 'all')) {
+                // If 'All Products' is selected, deselect other options
+                Array.from(productFilter.options).forEach(option => {
+                    if (option.value !== 'all') {
+                        option.selected = false;
+                    }
+                });
+            } else if (selectedOptions.length === 0) {
+                // If nothing is selected, select 'All Products'
+                Array.from(productFilter.options).forEach(option => {
+                    if (option.value === 'all') {
+                        option.selected = true;
+                    }
+                });
+            }
+            
+            // Update variant options based on product selection
+            updateVariantOptions();
+        }
+
+        function updateVariantOptions() {
+            // Get selected products
+            const selectedProducts = getSelectedValues(productFilter);
+            
+            // Filter variants based on selected products
             let variants;
-            if (selectedProduct === 'all') {
+            if (selectedProducts.includes('all')) {
                 variants = getUniqueValues(rawData, 'Variant');
             } else {
                 variants = getUniqueValues(
-                    rawData.filter(item => item.Product === selectedProduct), 
+                    rawData.filter(item => selectedProducts.includes(item.Product)), 
                     'Variant'
                 );
             }
             
+            // Save current selections to restore if possible
+            const currentSelections = getSelectedValues(variantFilter);
+            
             // Populate variant filter
-            variantFilter.innerHTML = '<option value="all">All Variants</option>';
+            variantFilter.innerHTML = '';
+            
+            // Add 'All Variants' option
+            const allOption = document.createElement('option');
+            allOption.value = 'all';
+            allOption.textContent = 'All Variants';
+            variantFilter.appendChild(allOption);
+            
+            // Add variant options
             variants.forEach(variant => {
                 const option = document.createElement('option');
                 option.value = variant;
                 option.textContent = variant;
+                
+                // Restore selection if it still exists
+                if (currentSelections.includes(variant)) {
+                    option.selected = true;
+                }
+                
                 variantFilter.appendChild(option);
+            });
+            
+            // Update the variant selection counter
+            updateVariantSelection();
+        }
+
+        function updateVariantSelection() {
+            // Update the selection counter
+            const selectedOptions = Array.from(variantFilter.selectedOptions);
+            const count = selectedOptions.length;
+            
+            // Show/hide the counter
+            if (count > 0) {
+                variantCount.textContent = count;
+                variantCount.style.display = 'flex';
+            } else {
+                variantCount.style.display = 'none';
+            }
+            
+            // Handle 'All Variants' selection
+            if (selectedOptions.some(option => option.value === 'all')) {
+                // If 'All Variants' is selected, deselect other options
+                Array.from(variantFilter.options).forEach(option => {
+                    if (option.value !== 'all') {
+                        option.selected = false;
+                    }
+                });
+            } else if (selectedOptions.length === 0) {
+                // If nothing is selected, select 'All Variants'
+                Array.from(variantFilter.options).forEach(option => {
+                    if (option.value === 'all') {
+                        option.selected = true;
+                    }
+                });
+            }
+        }
+
+        function getSelectedValues(selectElement) {
+            return Array.from(selectElement.selectedOptions).map(option => option.value);
+        }
+
+        function setupPeriodControls() {
+            const periodControlIds = [
+                'productionPeriodControls',
+                'scheduleAttainmentPeriodControls',
+                'scrapCostPeriodControls',
+                'costMetricsPeriodControls'
+            ];
+            
+            periodControlIds.forEach(id => {
+                const controls = document.getElementById(id);
+                if (controls) {
+                    const buttons = controls.querySelectorAll('.period-btn');
+                    
+                    buttons.forEach(button => {
+                        button.addEventListener('click', () => {
+                            // Update active state
+                            buttons.forEach(btn => btn.classList.remove('active'));
+                            button.classList.add('active');
+                            
+                            // Update period for this chart
+                            const period = button.dataset.period;
+                            
+                            // Determine which chart this is for
+                            let chartKey;
+                            if (id === 'productionPeriodControls') chartKey = 'production';
+                            else if (id === 'scheduleAttainmentPeriodControls') chartKey = 'scheduleAttainment';
+                            else if (id === 'scrapCostPeriodControls') chartKey = 'scrapCost';
+                            else if (id === 'costMetricsPeriodControls') chartKey = 'costMetrics';
+                            
+                            if (chartKey) {
+                                chartPeriods[chartKey] = period;
+                                updateDashboard();
+                            }
+                        });
+                    });
+                }
             });
         }
 
@@ -660,8 +1134,8 @@
             
             const dateFrom = dateFromInput.valueAsDate;
             const dateTo = dateToInput.valueAsDate;
-            const product = productFilter.value;
-            const variant = variantFilter.value;
+            const selectedProducts = getSelectedValues(productFilter);
+            const selectedVariants = getSelectedValues(variantFilter);
             
             // Filter data
             filteredData = rawData.filter(item => {
@@ -670,12 +1144,14 @@
                 // Date range filter
                 const dateInRange = (!dateFrom || itemDate >= dateFrom) && 
                                     (!dateTo || itemDate <= dateTo);
-                                    
+                
                 // Product filter
-                const productMatch = product === 'all' || item.Product === product;
+                const productMatch = selectedProducts.includes('all') || 
+                                    selectedProducts.includes(item.Product);
                 
                 // Variant filter
-                const variantMatch = variant === 'all' || item.Variant === variant;
+                const variantMatch = selectedVariants.includes('all') || 
+                                    selectedVariants.includes(item.Variant);
                 
                 return dateInRange && productMatch && variantMatch;
             }).sort(sortByDate);
@@ -705,17 +1181,23 @@
                 return;
             }
             
+            // Aggregate data if period is not daily
+            const period = chartPeriods.production;
+            const chartData = aggregateDataByPeriod(filteredData, period);
+            
             // Prepare data
-            const labels = filteredData.map(item => formatDate(item.Date));
+            const labels = chartData.map(item => 
+                item.displayDate || formatDate(item.Date)
+            );
             
             // Values based on current view mode
-            const actualValues = filteredData.map(item => 
+            const actualValues = chartData.map(item => 
                 productionViewMode === 'devices' 
                     ? item['Actual Devices Produced'] 
                     : item['Actual Boxes Produced']
             );
             
-            const targetValues = filteredData.map(item => 
+            const targetValues = chartData.map(item => 
                 productionViewMode === 'devices' 
                     ? item['Theoretical Target (Devices)'] 
                     : item['Theoretical Target (Boxes)']
@@ -784,7 +1266,11 @@
                         x: {
                             title: {
                                 display: true,
-                                text: 'Date'
+                                text: period === 'daily' ? 'Date' : period === 'weekly' ? 'Week' : 'Month'
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
                             }
                         }
                     }
@@ -801,9 +1287,15 @@
                 return;
             }
             
+            // Aggregate data if period is not daily
+            const period = chartPeriods.scheduleAttainment;
+            const chartData = aggregateDataByPeriod(filteredData, period);
+            
             // Prepare data
-            const labels = filteredData.map(item => formatDate(item.Date));
-            const attainmentValues = filteredData.map(item => item['Schedule Attainment']);
+            const labels = chartData.map(item => 
+                item.displayDate || formatDate(item.Date)
+            );
+            const attainmentValues = chartData.map(item => item['Schedule Attainment']);
             
             // Destroy existing chart if it exists
             if (scheduleAttainmentChart) {
@@ -836,7 +1328,7 @@
                             callbacks: {
                                 label: function(context) {
                                     const value = context.raw || 0;
-                                    return `Attainment: ${value}%`;
+                                    return `Attainment: ${value.toFixed(2)}%`;
                                 }
                             }
                         }
@@ -848,6 +1340,12 @@
                             title: {
                                 display: true,
                                 text: 'Percentage (%)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
                             }
                         }
                     }
@@ -864,15 +1362,42 @@
                 return;
             }
             
-            // Get all reject rates by station
+            // Get all reject rates by station from all filtered records
             let allStations = [];
+            
             filteredData.forEach(record => {
-                const rejectRates = getRejectRateByStation(record);
-                rejectRates.forEach(item => {
-                    if (!allStations.find(s => s.station === item.station)) {
-                        allStations.push(item);
-                    }
-                });
+                if (!record['Reject Rate by Station'] || record['Reject Rate by Station'] === 'No rejects') {
+                    return;
+                }
+                
+                try {
+                    // Split by commas and parse each station rate
+                    const stationRates = record['Reject Rate by Station'].split(', ');
+                    
+                    stationRates.forEach(stationRate => {
+                        const parts = stationRate.split(': ');
+                        if (parts.length === 2) {
+                            const station = parts[0];
+                            const rate = parseFloat(parts[1].replace('%', ''));
+                            
+                            if (!isNaN(rate)) {
+                                const existingStation = allStations.find(s => s.station === station);
+                                
+                                if (existingStation) {
+                                    // Update existing station with higher rate
+                                    if (rate > existingStation.rate) {
+                                        existingStation.rate = rate;
+                                    }
+                                } else {
+                                    // Add new station
+                                    allStations.push({ station, rate });
+                                }
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error parsing reject rate:', error);
+                }
             });
             
             // Sort and get top 3
@@ -957,9 +1482,74 @@
                 return;
             }
             
+            // Aggregate all rejects from filtered data
+            const allRejects = {
+                qty: [],
+                cost: []
+            };
+            
+            filteredData.forEach(record => {
+                try {
+                    const qtyRejects = parseTopRejects(record, 'qty');
+                    const costRejects = parseTopRejects(record, 'cost');
+                    
+                    allRejects.qty = [...allRejects.qty, ...qtyRejects];
+                    allRejects.cost = [...allRejects.cost, ...costRejects];
+                } catch (error) {
+                    console.error('Error parsing rejects:', error);
+                }
+            });
+            
+            // Group rejects by reason and station
+            const groupedRejects = {
+                qty: {},
+                cost: {}
+            };
+            
+            // Group QTY rejects
+            allRejects.qty.forEach(reject => {
+                const key = `${reject.reason}-${reject.station}`;
+                
+                if (!groupedRejects.qty[key]) {
+                    groupedRejects.qty[key] = {
+                        reason: reject.reason,
+                        station: reject.station,
+                        qty: 0,
+                        cost: 0
+                    };
+                }
+                
+                groupedRejects.qty[key].qty += reject.qty;
+                groupedRejects.qty[key].cost += reject.cost;
+            });
+            
+            // Group Cost rejects
+            allRejects.cost.forEach(reject => {
+                const key = `${reject.reason}-${reject.station}`;
+                
+                if (!groupedRejects.cost[key]) {
+                    groupedRejects.cost[key] = {
+                        reason: reject.reason,
+                        station: reject.station,
+                        qty: 0,
+                        cost: 0
+                    };
+                }
+                
+                groupedRejects.cost[key].qty += reject.qty;
+                groupedRejects.cost[key].cost += reject.cost;
+            });
+            
+            // Convert to arrays
+            const qtyArray = Object.values(groupedRejects.qty);
+            const costArray = Object.values(groupedRejects.cost);
+            
+            // Sort by QTY or Cost
+            qtyArray.sort((a, b) => b.qty - a.qty);
+            costArray.sort((a, b) => b.cost - a.cost);
+            
             // Get top rejects based on current view mode
-            const latestRecord = filteredData[filteredData.length - 1];
-            const topRejects = parseTopRejects(latestRecord, rejectsViewMode);
+            const topRejects = rejectsViewMode === 'qty' ? qtyArray.slice(0, 3) : costArray.slice(0, 3);
             
             if (!topRejects.length) {
                 const noRejectsItem = document.createElement('li');
@@ -970,13 +1560,13 @@
             }
             
             // Create list items
-            topRejects.forEach(reject => {
+            topRejects.forEach((reject, index) => {
                 const li = document.createElement('li');
                 li.className = 'reject-item';
                 
                 const reasonDiv = document.createElement('div');
                 reasonDiv.className = 'reject-reason';
-                reasonDiv.textContent = `${reject.rank}. ${reject.reason}`;
+                reasonDiv.textContent = `${index + 1}. ${reject.reason}`;
                 
                 const detailsDiv = document.createElement('div');
                 detailsDiv.className = 'reject-details';
@@ -988,7 +1578,7 @@
                 qtySpan.textContent = `QTY: ${reject.qty}`;
                 
                 const costSpan = document.createElement('span');
-                costSpan.textContent = `Cost: ${reject.cost}`;
+                costSpan.textContent = `Cost: ${reject.cost.toFixed(2)}`;
                 
                 detailsDiv.appendChild(stationSpan);
                 detailsDiv.appendChild(qtySpan);
@@ -1010,9 +1600,15 @@
                 return;
             }
             
+            // Aggregate data if period is not daily
+            const period = chartPeriods.scrapCost;
+            const chartData = aggregateDataByPeriod(filteredData, period);
+            
             // Prepare data
-            const labels = filteredData.map(item => formatDate(item.Date));
-            const scrapCostValues = filteredData.map(item => item['Scrap Cost as % of Production Value']);
+            const labels = chartData.map(item => 
+                item.displayDate || formatDate(item.Date)
+            );
+            const scrapCostValues = chartData.map(item => item['Scrap Cost as % of Production Value']);
             
             // Destroy existing chart if it exists
             if (scrapCostChart) {
@@ -1045,7 +1641,7 @@
                             callbacks: {
                                 label: function(context) {
                                     const value = context.raw || 0;
-                                    return `Scrap Cost: ${value}% of Production Value`;
+                                    return `Scrap Cost: ${value ? value.toFixed(2) : 0}% of Production Value`;
                                 }
                             }
                         }
@@ -1056,6 +1652,12 @@
                             title: {
                                 display: true,
                                 text: 'Percentage (%)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
                             }
                         }
                     }
@@ -1072,18 +1674,24 @@
                 return;
             }
             
+            // Aggregate data if period is not daily
+            const period = chartPeriods.costMetrics;
+            const chartData = aggregateDataByPeriod(filteredData, period);
+            
             // Prepare data
-            const labels = filteredData.map(item => formatDate(item.Date));
+            const labels = chartData.map(item => 
+                item.displayDate || formatDate(item.Date)
+            );
             
             // Values based on current view mode
             let values;
             let label;
             
             if (costViewMode === 'staff') {
-                values = filteredData.map(item => item['Staff Cost']);
+                values = chartData.map(item => item['Staff Cost']);
                 label = 'Staff Cost';
             } else {
-                values = filteredData.map(item => item['Cost Per Unit']);
+                values = chartData.map(item => item['Cost Per Unit']);
                 label = 'Cost Per Unit';
             }
             
@@ -1118,7 +1726,7 @@
                             callbacks: {
                                 label: function(context) {
                                     const value = context.raw || 0;
-                                    return `${label}: ${value}`;
+                                    return `${label}: ${value ? value.toFixed(2) : 0}`;
                                 }
                             }
                         }
@@ -1129,6 +1737,12 @@
                             title: {
                                 display: true,
                                 text: costViewMode === 'staff' ? 'Cost' : 'Cost Per Unit'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
                             }
                         }
                     }
