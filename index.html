@@ -102,16 +102,6 @@
             transition: var(--transition);
         }
 
-        .filter-group select {
-            min-width: 150px;
-            height: auto;
-        }
-
-        .filter-group select[multiple] {
-            height: 100px;
-            overflow-y: auto;
-        }
-
         .filter-group select:focus, 
         .filter-group input:focus {
             outline: none;
@@ -119,15 +109,31 @@
             box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
         }
 
-        .filter-group .select-wrapper {
+        /* Custom dropdown styling */
+        .custom-dropdown {
             position: relative;
             display: inline-block;
+            min-width: 150px;
         }
 
-        .filter-group .select-wrapper .selected-count {
-            position: absolute;
-            top: -8px;
-            right: -8px;
+        .dropdown-trigger {
+            padding: 0.4rem;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            background-color: white;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .dropdown-trigger:hover {
+            border-color: var(--primary-color);
+        }
+
+        .dropdown-trigger .selected-count {
             background-color: var(--primary-color);
             color: white;
             font-size: 0.7rem;
@@ -137,6 +143,71 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            margin-left: 8px;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: white;
+            min-width: 200px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            z-index: 20;
+            top: 100%;
+            left: 0;
+            margin-top: 4px;
+        }
+
+        .dropdown-content.show {
+            display: block;
+        }
+
+        .dropdown-option {
+            padding: 0.5rem;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+        }
+
+        .dropdown-option:hover {
+            background-color: var(--light-color);
+        }
+
+        .dropdown-option.selected {
+            background-color: rgba(52, 152, 219, 0.1);
+        }
+
+        .dropdown-option input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        .dropdown-actions {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem;
+            border-top: 1px solid #ddd;
+        }
+
+        .dropdown-actions button {
+            padding: 0.3rem 0.5rem;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .dropdown-actions button.apply {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .dropdown-actions button.clear {
+            background-color: var(--light-color);
         }
 
         .dashboard {
@@ -242,7 +313,6 @@
         .list-container {
             width: 100%;
             height: 100%;
-            overflow-y: auto;
         }
 
         .reject-list {
@@ -251,7 +321,7 @@
         }
 
         .reject-item {
-            padding: 0.5rem;
+            padding: 0.4rem;
             border-bottom: 1px solid #eee;
         }
 
@@ -261,12 +331,13 @@
 
         .reject-reason {
             font-weight: 600;
+            font-size: 0.85rem;
         }
 
         .reject-details {
             display: flex;
             justify-content: space-between;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: var(--gray-color);
             margin-top: 2px;
         }
@@ -414,19 +485,34 @@
     
     <div class="filter-row">
         <div class="filter-group">
-            <label for="productFilter">Product:</label>
-            <div class="select-wrapper">
-                <select id="productFilter" multiple>
-                    <option value="all">All Products</option>
-                </select>
-                <div class="selected-count" id="productCount" style="display: none;">0</div>
+            <label for="productDropdown">Product:</label>
+            <div class="custom-dropdown" id="productDropdown">
+                <div class="dropdown-trigger" id="productTrigger">
+                    <span>All Products</span>
+                    <span class="selected-count" id="productCount" style="display: none;">0</span>
+                </div>
+                <div class="dropdown-content" id="productOptions">
+                    <!-- Options will be added dynamically -->
+                    <div class="dropdown-actions">
+                        <button class="clear" id="clearProducts">Clear</button>
+                        <button class="apply" id="applyProducts">Apply</button>
+                    </div>
+                </div>
             </div>
-            <label for="variantFilter">Variant:</label>
-            <div class="select-wrapper">
-                <select id="variantFilter" multiple>
-                    <option value="all">All Variants</option>
-                </select>
-                <div class="selected-count" id="variantCount" style="display: none;">0</div>
+            
+            <label for="variantDropdown">Variant:</label>
+            <div class="custom-dropdown" id="variantDropdown">
+                <div class="dropdown-trigger" id="variantTrigger">
+                    <span>All Variants</span>
+                    <span class="selected-count" id="variantCount" style="display: none;">0</span>
+                </div>
+                <div class="dropdown-content" id="variantOptions">
+                    <!-- Options will be added dynamically -->
+                    <div class="dropdown-actions">
+                        <button class="clear" id="clearVariants">Clear</button>
+                        <button class="apply" id="applyVariants">Apply</button>
+                    </div>
+                </div>
             </div>
         </div>
         <button id="applyFilters" class="btn btn-primary">
@@ -485,7 +571,7 @@
         
         <div class="card">
             <div class="card-header">
-                <div class="card-title">Top Rejects</div>
+                <div class="card-title">Top 3 Rejects</div>
                 <div class="card-actions">
                     <button class="btn active" id="rejectsByQty">By QTY</button>
                     <button class="btn" id="rejectsByCost">By Cost</button>
@@ -585,8 +671,6 @@
         // DOM elements
         const dateFromInput = document.getElementById('dateFrom');
         const dateToInput = document.getElementById('dateTo');
-        const productFilter = document.getElementById('productFilter');
-        const variantFilter = document.getElementById('variantFilter');
         const applyFiltersBtn = document.getElementById('applyFilters');
         const applyDatesBtn = document.getElementById('applyDates');
         const toggleProductionViewBtn = document.getElementById('toggleProductionView');
@@ -596,8 +680,19 @@
         const showCostPerUnitBtn = document.getElementById('showCostPerUnit');
         const rejectsList = document.getElementById('rejectsList');
         const loaderContainer = document.getElementById('loaderContainer');
+        
+        // Custom dropdown elements
+        const productTrigger = document.getElementById('productTrigger');
+        const productOptions = document.getElementById('productOptions');
         const productCount = document.getElementById('productCount');
+        const clearProducts = document.getElementById('clearProducts');
+        const applyProducts = document.getElementById('applyProducts');
+        
+        const variantTrigger = document.getElementById('variantTrigger');
+        const variantOptions = document.getElementById('variantOptions');
         const variantCount = document.getElementById('variantCount');
+        const clearVariants = document.getElementById('clearVariants');
+        const applyVariants = document.getElementById('applyVariants');
 
         // Helper functions
         function formatDate(dateString) {
@@ -623,6 +718,11 @@
             }
             
             return null;
+        }
+
+        function getDaysBetweenDates(date1, date2) {
+            const oneDay = 24 * 60 * 60 * 1000; // hours*minutes*seconds*milliseconds
+            return Math.round(Math.abs((date1 - date2) / oneDay));
         }
 
         function sortByDate(a, b) {
@@ -694,6 +794,158 @@
                 console.error('Error parsing top rejects:', error);
                 return [];
             }
+        }
+
+        // Dropdown functionality
+        function setupCustomDropdowns() {
+            // Product dropdown events
+            productTrigger.addEventListener('click', () => {
+                productOptions.classList.toggle('show');
+                // Close other dropdown if open
+                variantOptions.classList.remove('show');
+            });
+            
+            clearProducts.addEventListener('click', () => {
+                // Clear selections
+                const options = productOptions.querySelectorAll('.dropdown-option input[type="checkbox"]');
+                options.forEach(option => {
+                    option.checked = false;
+                });
+                
+                // Select "All Products"
+                const allOption = productOptions.querySelector('.dropdown-option[data-value="all"] input[type="checkbox"]');
+                if (allOption) {
+                    allOption.checked = true;
+                }
+                
+                // Update display
+                updateProductDropdownDisplay();
+                
+                // Update variant options
+                updateVariantOptions();
+            });
+            
+            applyProducts.addEventListener('click', () => {
+                productOptions.classList.remove('show');
+                updateVariantOptions();
+            });
+            
+            // Variant dropdown events
+            variantTrigger.addEventListener('click', () => {
+                variantOptions.classList.toggle('show');
+                // Close other dropdown if open
+                productOptions.classList.remove('show');
+            });
+            
+            clearVariants.addEventListener('click', () => {
+                // Clear selections
+                const options = variantOptions.querySelectorAll('.dropdown-option input[type="checkbox"]');
+                options.forEach(option => {
+                    option.checked = false;
+                });
+                
+                // Select "All Variants"
+                const allOption = variantOptions.querySelector('.dropdown-option[data-value="all"] input[type="checkbox"]');
+                if (allOption) {
+                    allOption.checked = true;
+                }
+                
+                // Update display
+                updateVariantDropdownDisplay();
+            });
+            
+            applyVariants.addEventListener('click', () => {
+                variantOptions.classList.remove('show');
+            });
+            
+            // Close dropdowns when clicking outside
+            document.addEventListener('click', (event) => {
+                if (!event.target.closest('#productDropdown') && !event.target.closest('#clearProducts') && !event.target.closest('#applyProducts')) {
+                    productOptions.classList.remove('show');
+                }
+                
+                if (!event.target.closest('#variantDropdown') && !event.target.closest('#clearVariants') && !event.target.closest('#applyVariants')) {
+                    variantOptions.classList.remove('show');
+                }
+            });
+        }
+
+        function updateProductDropdownDisplay() {
+            const checkboxes = productOptions.querySelectorAll('.dropdown-option input[type="checkbox"]:checked');
+            const count = checkboxes.length;
+            const isAllSelected = Array.from(checkboxes).some(checkbox => 
+                checkbox.closest('.dropdown-option').dataset.value === 'all'
+            );
+            
+            const triggerText = productTrigger.querySelector('span:first-child');
+            
+            if (isAllSelected) {
+                triggerText.textContent = 'All Products';
+                productCount.style.display = 'none';
+            } else if (count === 0) {
+                // If nothing selected, select "All Products"
+                const allOption = productOptions.querySelector('.dropdown-option[data-value="all"] input[type="checkbox"]');
+                if (allOption) {
+                    allOption.checked = true;
+                    triggerText.textContent = 'All Products';
+                    productCount.style.display = 'none';
+                }
+            } else {
+                triggerText.textContent = 'Products';
+                productCount.textContent = count;
+                productCount.style.display = 'flex';
+            }
+        }
+
+        function updateVariantDropdownDisplay() {
+            const checkboxes = variantOptions.querySelectorAll('.dropdown-option input[type="checkbox"]:checked');
+            const count = checkboxes.length;
+            const isAllSelected = Array.from(checkboxes).some(checkbox => 
+                checkbox.closest('.dropdown-option').dataset.value === 'all'
+            );
+            
+            const triggerText = variantTrigger.querySelector('span:first-child');
+            
+            if (isAllSelected) {
+                triggerText.textContent = 'All Variants';
+                variantCount.style.display = 'none';
+            } else if (count === 0) {
+                // If nothing selected, select "All Variants"
+                const allOption = variantOptions.querySelector('.dropdown-option[data-value="all"] input[type="checkbox"]');
+                if (allOption) {
+                    allOption.checked = true;
+                    triggerText.textContent = 'All Variants';
+                    variantCount.style.display = 'none';
+                }
+            } else {
+                triggerText.textContent = 'Variants';
+                variantCount.textContent = count;
+                variantCount.style.display = 'flex';
+            }
+        }
+
+        function getSelectedProducts() {
+            const selected = [];
+            const checkboxes = productOptions.querySelectorAll('.dropdown-option input[type="checkbox"]:checked');
+            
+            checkboxes.forEach(checkbox => {
+                const option = checkbox.closest('.dropdown-option');
+                selected.push(option.dataset.value);
+            });
+            
+            return selected;
+        }
+
+        function getSelectedVariants() {
+            const selected = [];
+            const checkboxes = variantOptions.querySelectorAll('.dropdown-option input[type="checkbox"]:checked');
+            
+            checkboxes.forEach(checkbox => {
+                const option = checkbox.closest('.dropdown-option');
+                selected.push(option.dataset.value);
+            });
+            
+            return selected;
         }
 
         // Data aggregation functions
@@ -907,6 +1159,47 @@
             return new Date(d.setHours(0, 0, 0, 0));
         }
 
+        // Intelligent period selection based on date range
+        function determineBestPeriod(dateFrom, dateTo) {
+            if (!dateFrom || !dateTo) return 'daily';
+            
+            const days = getDaysBetweenDates(dateFrom, dateTo);
+            
+            if (days <= 7) {
+                return 'daily';
+            } else if (days <= 31) {
+                return 'weekly';
+            } else {
+                return 'monthly';
+            }
+        }
+
+        function updateAllPeriodControls(period) {
+            // Update all period controls to the selected period
+            chartPeriods.production = period;
+            chartPeriods.scheduleAttainment = period;
+            chartPeriods.scrapCost = period;
+            chartPeriods.costMetrics = period;
+            
+            // Update UI buttons
+            const periodGroups = [
+                'productionPeriodControls',
+                'scheduleAttainmentPeriodControls',
+                'scrapCostPeriodControls',
+                'costMetricsPeriodControls'
+            ];
+            
+            periodGroups.forEach(groupId => {
+                const controls = document.getElementById(groupId);
+                if (controls) {
+                    const buttons = controls.querySelectorAll('.period-btn');
+                    buttons.forEach(btn => {
+                        btn.classList.toggle('active', btn.dataset.period === period);
+                    });
+                }
+            });
+        }
+
         // Data fetching and processing
         async function fetchData() {
             try {
@@ -917,6 +1210,7 @@
                 if (data && data.productionData && Array.isArray(data.productionData)) {
                     rawData = data.productionData.sort(sortByDate);
                     initializeFilters();
+                    setupCustomDropdowns();
                     applyFilters();
                 } else {
                     console.error('Invalid data format');
@@ -941,73 +1235,113 @@
                 dateToInput.valueAsDate = latestDates[latestDates.length - 1];
             }
             
-            // Clear existing options
-            productFilter.innerHTML = '';
+            // Initialize product options
+            populateProductOptions(products);
             
-            // Add 'All Products' option
-            const allOption = document.createElement('option');
-            allOption.value = 'all';
-            allOption.textContent = 'All Products';
-            productFilter.appendChild(allOption);
-            
-            // Add product options
-            products.forEach(product => {
-                const option = document.createElement('option');
-                option.value = product;
-                option.textContent = product;
-                productFilter.appendChild(option);
-            });
-            
-            // Product filter change event
-            productFilter.addEventListener('change', updateProductSelection);
-            
-            // Initialize variant filter
+            // Initialize variant options
             updateVariantOptions();
-            
-            // Variant filter change handler
-            variantFilter.addEventListener('change', updateVariantSelection);
             
             // Initialize period buttons
             setupPeriodControls();
         }
 
-        function updateProductSelection() {
-            // Update the selection counter
-            const selectedOptions = Array.from(productFilter.selectedOptions);
-            const count = selectedOptions.length;
+        function populateProductOptions(products) {
+            // Create "All Products" option
+            const allProductsOption = document.createElement('div');
+            allProductsOption.className = 'dropdown-option';
+            allProductsOption.dataset.value = 'all';
             
-            // Show/hide the counter
-            if (count > 0) {
-                productCount.textContent = count;
-                productCount.style.display = 'flex';
-            } else {
-                productCount.style.display = 'none';
-            }
+            const allProductsCheckbox = document.createElement('input');
+            allProductsCheckbox.type = 'checkbox';
+            allProductsCheckbox.checked = true;
+            allProductsCheckbox.id = 'product-all';
             
-            // Handle 'All Products' selection
-            if (selectedOptions.some(option => option.value === 'all')) {
-                // If 'All Products' is selected, deselect other options
-                Array.from(productFilter.options).forEach(option => {
-                    if (option.value !== 'all') {
-                        option.selected = false;
+            const allProductsLabel = document.createElement('label');
+            allProductsLabel.textContent = 'All Products';
+            allProductsLabel.htmlFor = 'product-all';
+            
+            allProductsOption.appendChild(allProductsCheckbox);
+            allProductsOption.appendChild(allProductsLabel);
+            
+            // Clear existing options and add the "All Products" option first
+            const optionsContainer = productOptions.querySelector('.dropdown-actions');
+            productOptions.innerHTML = '';
+            productOptions.appendChild(allProductsOption);
+            
+            // Add product options
+            products.forEach((product, index) => {
+                const option = document.createElement('div');
+                option.className = 'dropdown-option';
+                option.dataset.value = product;
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `product-${index}`;
+                
+                const label = document.createElement('label');
+                label.textContent = product;
+                label.htmlFor = `product-${index}`;
+                
+                option.appendChild(checkbox);
+                option.appendChild(label);
+                
+                productOptions.appendChild(option);
+            });
+            
+            // Add dropdown actions back
+            productOptions.appendChild(optionsContainer);
+            
+            // Add event listeners to handle selection
+            const checkboxes = productOptions.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    const option = checkbox.closest('.dropdown-option');
+                    
+                    // Handle "All Products" selection
+                    if (option.dataset.value === 'all') {
+                        if (checkbox.checked) {
+                            // If "All Products" is checked, uncheck others
+                            checkboxes.forEach(cb => {
+                                if (cb !== checkbox) {
+                                    cb.checked = false;
+                                }
+                            });
+                        } else {
+                            // If "All Products" is unchecked, make sure at least one option is selected
+                            const anyChecked = Array.from(checkboxes).some(cb => cb.checked);
+                            if (!anyChecked) {
+                                checkbox.checked = true;
+                            }
+                        }
+                    } else {
+                        // If a specific product is checked, uncheck "All Products"
+                        const allOption = productOptions.querySelector('.dropdown-option[data-value="all"] input[type="checkbox"]');
+                        if (checkbox.checked && allOption) {
+                            allOption.checked = false;
+                        }
+                        
+                        // Ensure at least one option is selected
+                        const anyChecked = Array.from(checkboxes).some(cb => cb.checked);
+                        if (!anyChecked) {
+                            // If nothing is checked, check "All Products"
+                            if (allOption) {
+                                allOption.checked = true;
+                            }
+                        }
                     }
+                    
+                    // Update the display
+                    updateProductDropdownDisplay();
                 });
-            } else if (selectedOptions.length === 0) {
-                // If nothing is selected, select 'All Products'
-                Array.from(productFilter.options).forEach(option => {
-                    if (option.value === 'all') {
-                        option.selected = true;
-                    }
-                });
-            }
+            });
             
-            // Update variant options based on product selection
-            updateVariantOptions();
+            // Initialize display
+            updateProductDropdownDisplay();
         }
 
         function updateVariantOptions() {
             // Get selected products
-            const selectedProducts = getSelectedValues(productFilter);
+            const selectedProducts = getSelectedProducts();
             
             // Filter variants based on selected products
             let variants;
@@ -1020,69 +1354,101 @@
                 );
             }
             
-            // Save current selections to restore if possible
-            const currentSelections = getSelectedValues(variantFilter);
+            // Get currently selected variants to preserve if possible
+            const previouslySelected = getSelectedVariants();
             
-            // Populate variant filter
-            variantFilter.innerHTML = '';
+            // Create "All Variants" option
+            const allVariantsOption = document.createElement('div');
+            allVariantsOption.className = 'dropdown-option';
+            allVariantsOption.dataset.value = 'all';
             
-            // Add 'All Variants' option
-            const allOption = document.createElement('option');
-            allOption.value = 'all';
-            allOption.textContent = 'All Variants';
-            variantFilter.appendChild(allOption);
+            const allVariantsCheckbox = document.createElement('input');
+            allVariantsCheckbox.type = 'checkbox';
+            allVariantsCheckbox.checked = previouslySelected.includes('all') || previouslySelected.length === 0;
+            allVariantsCheckbox.id = 'variant-all';
+            
+            const allVariantsLabel = document.createElement('label');
+            allVariantsLabel.textContent = 'All Variants';
+            allVariantsLabel.htmlFor = 'variant-all';
+            
+            allVariantsOption.appendChild(allVariantsCheckbox);
+            allVariantsOption.appendChild(allVariantsLabel);
+            
+            // Clear existing options and add the "All Variants" option first
+            const optionsContainer = variantOptions.querySelector('.dropdown-actions');
+            variantOptions.innerHTML = '';
+            variantOptions.appendChild(allVariantsOption);
             
             // Add variant options
-            variants.forEach(variant => {
-                const option = document.createElement('option');
-                option.value = variant;
-                option.textContent = variant;
+            variants.forEach((variant, index) => {
+                const option = document.createElement('div');
+                option.className = 'dropdown-option';
+                option.dataset.value = variant;
                 
-                // Restore selection if it still exists
-                if (currentSelections.includes(variant)) {
-                    option.selected = true;
-                }
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `variant-${index}`;
+                checkbox.checked = previouslySelected.includes(variant) && !previouslySelected.includes('all');
                 
-                variantFilter.appendChild(option);
+                const label = document.createElement('label');
+                label.textContent = variant;
+                label.htmlFor = `variant-${index}`;
+                
+                option.appendChild(checkbox);
+                option.appendChild(label);
+                
+                variantOptions.appendChild(option);
             });
             
-            // Update the variant selection counter
-            updateVariantSelection();
-        }
-
-        function updateVariantSelection() {
-            // Update the selection counter
-            const selectedOptions = Array.from(variantFilter.selectedOptions);
-            const count = selectedOptions.length;
+            // Add dropdown actions back
+            variantOptions.appendChild(optionsContainer);
             
-            // Show/hide the counter
-            if (count > 0) {
-                variantCount.textContent = count;
-                variantCount.style.display = 'flex';
-            } else {
-                variantCount.style.display = 'none';
-            }
+            // Add event listeners to handle selection
+            const checkboxes = variantOptions.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    const option = checkbox.closest('.dropdown-option');
+                    
+                    // Handle "All Variants" selection
+                    if (option.dataset.value === 'all') {
+                        if (checkbox.checked) {
+                            // If "All Variants" is checked, uncheck others
+                            checkboxes.forEach(cb => {
+                                if (cb !== checkbox) {
+                                    cb.checked = false;
+                                }
+                            });
+                        } else {
+                            // If "All Variants" is unchecked, make sure at least one option is selected
+                            const anyChecked = Array.from(checkboxes).some(cb => cb.checked);
+                            if (!anyChecked) {
+                                checkbox.checked = true;
+                            }
+                        }
+                    } else {
+                        // If a specific variant is checked, uncheck "All Variants"
+                        const allOption = variantOptions.querySelector('.dropdown-option[data-value="all"] input[type="checkbox"]');
+                        if (checkbox.checked && allOption) {
+                            allOption.checked = false;
+                        }
+                        
+                        // Ensure at least one option is selected
+                        const anyChecked = Array.from(checkboxes).some(cb => cb.checked);
+                        if (!anyChecked) {
+                            // If nothing is checked, check "All Variants"
+                            if (allOption) {
+                                allOption.checked = true;
+                            }
+                        }
+                    }
+                    
+                    // Update the display
+                    updateVariantDropdownDisplay();
+                });
+            });
             
-            // Handle 'All Variants' selection
-            if (selectedOptions.some(option => option.value === 'all')) {
-                // If 'All Variants' is selected, deselect other options
-                Array.from(variantFilter.options).forEach(option => {
-                    if (option.value !== 'all') {
-                        option.selected = false;
-                    }
-                });
-            } else if (selectedOptions.length === 0) {
-                // If nothing is selected, select 'All Variants'
-                Array.from(variantFilter.options).forEach(option => {
-                    if (option.value === 'all') {
-                        option.selected = true;
-                    }
-                });
-            }
-        }
-
-        function getSelectedValues(selectElement) {
-            return Array.from(selectElement.selectedOptions).map(option => option.value);
+            // Initialize display
+            updateVariantDropdownDisplay();
         }
 
         function setupPeriodControls() {
@@ -1126,6 +1492,17 @@
 
         function applyDateFilters() {
             showLoader();
+            
+            // Get selected dates
+            const dateFrom = dateFromInput.valueAsDate;
+            const dateTo = dateToInput.valueAsDate;
+            
+            if (dateFrom && dateTo) {
+                // Determine best time period based on date range
+                const bestPeriod = determineBestPeriod(dateFrom, dateTo);
+                updateAllPeriodControls(bestPeriod);
+            }
+            
             applyFilters(); // This will handle both date and product/variant filters
         }
 
@@ -1134,8 +1511,8 @@
             
             const dateFrom = dateFromInput.valueAsDate;
             const dateTo = dateToInput.valueAsDate;
-            const selectedProducts = getSelectedValues(productFilter);
-            const selectedVariants = getSelectedValues(variantFilter);
+            const selectedProducts = getSelectedProducts();
+            const selectedVariants = getSelectedVariants();
             
             // Filter data
             filteredData = rawData.filter(item => {
@@ -1302,6 +1679,10 @@
                 scheduleAttainmentChart.destroy();
             }
             
+            // Determine max value for y-axis (ensure it's at least 100%, but can go higher)
+            const maxAttainment = Math.max(100, ...attainmentValues.filter(v => !isNaN(v) && v !== null));
+            const yAxisMax = Math.ceil(maxAttainment / 10) * 10; // Round up to nearest 10%
+            
             // Create new chart
             scheduleAttainmentChart = new Chart(ctx, {
                 type: 'line',
@@ -1336,7 +1717,7 @@
                     scales: {
                         y: {
                             beginAtZero: true,
-                            max: 100,
+                            max: yAxisMax, // Use calculated max
                             title: {
                                 display: true,
                                 text: 'Percentage (%)'
@@ -1615,6 +1996,10 @@
                 scrapCostChart.destroy();
             }
             
+            // Determine max value for y-axis
+            const maxScrapCost = Math.max(...scrapCostValues.filter(v => !isNaN(v) && v !== null));
+            const yAxisMax = Math.ceil(maxScrapCost / 5) * 5; // Round up to nearest 5%
+            
             // Create new chart
             scrapCostChart = new Chart(ctx, {
                 type: 'line',
@@ -1649,6 +2034,7 @@
                     scales: {
                         y: {
                             beginAtZero: true,
+                            max: yAxisMax > 0 ? yAxisMax : 5, // Use calculated max or 5 as minimum
                             title: {
                                 display: true,
                                 text: 'Percentage (%)'
