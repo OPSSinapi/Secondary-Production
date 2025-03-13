@@ -2448,8 +2448,7 @@
                                     const label = context.dataset.label || '';
                                     const value = context.raw || 0;
                                     const formattedValue = Math.round(value).toLocaleString();
-                                    return `${label}: ${formattedValue} ${production
-                                                                          ViewMode === 'devices' ? 'Devices' : 'Boxes'}`;
+                                    return `${label}: ${formattedValue} ${productionViewMode === 'devices' ? 'Devices' : 'Boxes'}`;
                                 }
                             }
                         },
