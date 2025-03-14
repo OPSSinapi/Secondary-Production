@@ -197,7 +197,7 @@
             transition: var(--transition);
             display: flex;
             align-items: center;
-            color: var(--dark-color); /* Explicitly set text color */
+            color: #2c3e50 !important;
         }
 
         .dropdown-option:hover {
@@ -212,8 +212,12 @@
             margin-right: 8px;
         }
 
+                .dropdown-option input[type="checkbox"] + label {
+            color: #2c3e50 !important;
+        }
+
         .dropdown-option label {
-            color: var(--dark-color); /* Explicitly set label color */
+            color: #2c3e50 !important;
         }
 
         .dropdown-actions {
@@ -231,6 +235,7 @@
             cursor: pointer;
             font-size: 0.8rem;
             transition: var(--transition);
+                color: #2c3e50 !important;
         }
 
         .dropdown-actions button.apply {
