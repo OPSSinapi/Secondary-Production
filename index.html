@@ -1143,8 +1143,8 @@
             const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
             
             const squaredDiffs = values.map(val => Math.pow(val - mean, 2));
-            const variance = squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length;
-            const stdDev = Math.sqrt(variance);
+            const avgSquareDiff = squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length;
+            const stdDev = Math.sqrt(avgSquareDiff);
             
             return {
                 mean,
@@ -2394,1166 +2394,1165 @@
                 <div class="kpi-comparison">${comparison}</div>
                 <div class="kpi-progress">
                     <div class="kpi-progress-bar ${statusClass}" style="width: ${progressPercent}%"></div>
-</div>
-<div class="sparkline">${sparkline}</div>
-`;
-kpiSummary.appendChild(card);
-    }
+                </div>
+                <div class="sparkline">${sparkline}</div>
+            `;
+            kpiSummary.appendChild(card);
+        }
 
-    // Dashboard update functions
-    function updateDashboard() {
-        updateKPISummary();
-        updateProductionChart();
-        updateScheduleAttainmentChart();
-        updateRejectRateChart();
-        updateRejectsList();
-        updateDowntimeList();
-        updateScrapCostChart();
-        updateCostMetricsChart();
-    }
+        // Dashboard update functions
+        function updateDashboard() {
+            updateKPISummary();
+            updateProductionChart();
+            updateScheduleAttainmentChart();
+            updateRejectRateChart();
+            updateRejectsList();
+            updateDowntimeList();
+            updateScrapCostChart();
+            updateCostMetricsChart();
+        }
 
-    function updateProductionChart() {
-        const ctx = document.getElementById('productionChart').getContext('2d');
-        
-        // Check if we have data
-        if (!filteredData.length) {
-            renderNoDataMessage(ctx, 'No production data available for the selected filters');
-            return;
-        }
-        
-        // Aggregate data if period is not daily
-        const period = chartPeriods.production;
-        const chartData = aggregateDataByPeriod(filteredData, period);
-        
-        // Prepare data
-        const labels = chartData.map(item => 
-            formatDate(item.Date, true) // Use short date format
-        );
-        
-        // Values based on current view mode
-        const actualValues = chartData.map(item => 
-            productionViewMode === 'devices' 
-                ? item['Actual Devices Produced'] 
-                : item['Actual Boxes Produced']
-        );
-        
-        const targetValues = chartData.map(item => 
-            productionViewMode === 'devices' 
-                ? item['Theoretical Target (Devices)'] 
-                : item['Theoretical Target (Boxes)']
-        );
-        
-        // Calculate variance percentages for color coding
-        const variancePercentages = actualValues.map((actual, index) => {
-            const target = targetValues[index];
-            if (!target) return 0;
-            return ((actual - target) / target) * 100;
-        });
-        
-        // Color-code based on variance
-        const actualColors = variancePercentages.map(variance => {
-            if (variance >= 0) return 'rgba(46, 204, 113, 0.6)'; // Green for meeting/exceeding target
-            if (variance >= -15) return 'rgba(241, 196, 15, 0.6)'; // Yellow for close to target
-            return 'rgba(231, 76, 60, 0.6)'; // Red for significantly below target
-        });
-        
-        const actualBorderColors = variancePercentages.map(variance => {
-            if (variance >= 0) return 'rgba(46, 204, 113, 1)';
-            if (variance >= -15) return 'rgba(241, 196, 15, 1)';
-            return 'rgba(231, 76, 60, 1)';
-        });
-        
-        // Destroy existing chart if it exists
-        if (productionChart) {
-            productionChart.destroy();
-        }
-        
-        // Create new chart
-        productionChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Actual',
-                        data: actualValues,
-                        backgroundColor: actualColors,
-                        borderColor: actualBorderColors,
-                        borderWidth: 1
-                    },
-                    {
-                        label: 'Target',
-                        data: targetValues,
-                        backgroundColor: 'rgba(52, 152, 219, 0.2)',
-                        borderColor: 'rgba(52, 152, 219, 1)',
-                        borderWidth: 1,
-                        type: 'line',
-                        order: 0
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: {
-                    duration: 1000,
-                    easing: 'easeOutQuart'
-                },
-                plugins: {
-                    title: {
-                        display: false
-                    },
-                    tooltip: {
-                        backgroundColor: config.tooltipBackgroundColor,
-                        titleColor: config.tooltipTitleColor,
-                        bodyColor: config.tooltipBodyColor,
-                        borderColor: config.tooltipBorderColor,
-                        borderWidth: config.tooltipBorderWidth,
-                        callbacks: {
-                            label: function(context) {
-                                const label = context.dataset.label || '';
-                                const value = context.raw || 0;
-                                const formattedValue = Math.round(value).toLocaleString();
-                                return `${label}: ${formattedValue} ${productionViewMode === 'devices' ? 'Devices' : 'Boxes'}`;
-                            }
-                        }
-                    },
-                    legend: {
-                        position: 'top',
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: productionViewMode === 'devices' ? 'Devices' : 'Boxes'
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: period === 'daily' ? 'Date' : period === 'weekly' ? 'Week' : 'Month'
-                        },
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 45
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    function updateScheduleAttainmentChart() {
-        const ctx = document.getElementById('scheduleAttainmentChart').getContext('2d');
-        
-        // Check if we have data
-        if (!filteredData.length) {
-            renderNoDataMessage(ctx, 'No schedule data available for the selected filters');
-            return;
-        }
-        
-        // Aggregate data if period is not daily
-        const period = chartPeriods.scheduleAttainment;
-        const chartData = aggregateDataByPeriod(filteredData, period);
-        
-        // Prepare data
-        const labels = chartData.map(item => 
-            formatDate(item.Date, true) // Use short date format
-        );
-        const attainmentValues = chartData.map(item => item['Schedule Attainment']);
-        
-        // Color coding based on thresholds
-        const colorCode = attainmentValues.map(value => {
-            if (value >= config.scheduleAttainmentThresholds.good) {
-                return 'rgba(46, 204, 113, 0.6)'; // Good (green)
-            } else if (value >= config.scheduleAttainmentThresholds.warning) {
-                return 'rgba(241, 196, 15, 0.6)'; // Warning (yellow)
-            } else {
-                return 'rgba(231, 76, 60, 0.6)'; // Danger (red)
-            }
-        });
-        
-        const borderColorCode = attainmentValues.map(value => {
-            if (value >= config.scheduleAttainmentThresholds.good) {
-                return 'rgba(46, 204, 113, 1)';
-            } else if (value >= config.scheduleAttainmentThresholds.warning) {
-                return 'rgba(241, 196, 15, 1)';
-            } else {
-                return 'rgba(231, 76, 60, 1)';
-            }
-        });
-        
-        // Destroy existing chart if it exists
-        if (scheduleAttainmentChart) {
-            scheduleAttainmentChart.destroy();
-        }
-        
-        // Determine max value for y-axis (ensure it's at least 100%, but can go higher)
-        const maxAttainment = Math.max(100, ...attainmentValues.filter(v => !isNaN(v) && v !== null));
-        const yAxisMax = Math.ceil(maxAttainment / 10) * 10; // Round up to nearest 10%
-        
-        // Reference line for 100% attainment
-        const targetLine = {
-            id: 'targetLine',
-            beforeDatasetsDraw(chart) {
-                const {ctx, chartArea: {top, bottom, left, right}, scales: {x, y}} = chart;
-                const targetY = y.getPixelForValue(100);
-                
-                ctx.save();
-                ctx.beginPath();
-                ctx.moveTo(left, targetY);
-                ctx.lineTo(right, targetY);
-                ctx.lineWidth = 1;
-                ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-                ctx.setLineDash([5, 5]);
-                ctx.stroke();
-                ctx.restore();
-                
-                // Add label
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-                ctx.font = '11px Arial';
-                ctx.textAlign = 'left';
-                ctx.fillText('Target (100%)', left + 5, targetY - 5);
-            }
-        };
-        
-        // Create new chart
-        scheduleAttainmentChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Schedule Attainment %',
-                        data: attainmentValues,
-                        backgroundColor: colorCode,
-                        borderColor: borderColorCode,
-                        borderWidth: 2,
-                        tension: 0.1,
-                        fill: false,
-                        pointBackgroundColor: colorCode,
-                        pointBorderColor: borderColorCode,
-                        pointRadius: 5,
-                        pointHoverRadius: 7
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: {
-                    duration: 1000,
-                    easing: 'easeOutQuart'
-                },
-                plugins: {
-                    tooltip: {
-                        backgroundColor: config.tooltipBackgroundColor,
-                        callbacks: {
-                            label: function(context) {
-                                const value = context.raw || 0;
-                                return `Attainment: ${value.toFixed(1)}%`;
-                            },
-                            afterLabel: function(context) {
-                                const value = context.raw || 0;
-                                let status = '';
-                                
-                                if (value >= config.scheduleAttainmentThresholds.good) {
-                                    status = 'Good';
-                                } else if (value >= config.scheduleAttainmentThresholds.warning) {
-                                    status = 'Warning';
-                                } else {
-                                    status = 'Below Target';
-                                }
-                                
-                                return `Status: ${status}`;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: yAxisMax,
-                        title: {
-                            display: true,
-                            text: 'Percentage (%)'
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 45
-                        }
-                    }
-                }
-            },
-            plugins: [targetLine]
-        });
-        
-        // Add annotations for outliers
-        if (outliers['Schedule Attainment'] && outliers['Schedule Attainment'].length > 0) {
-            addOutlierAnnotations('scheduleAttainmentChart', outliers['Schedule Attainment'], chartData);
-        }
-    }
-
-function updateRejectRateChart() {
-        const ctx = document.getElementById('rejectRateChart').getContext('2d');
-        
-        // Check if we have data
-        if (!filteredData.length) {
-            renderNoDataMessage(ctx, 'No reject data available for the selected filters');
-            return;
-        }
-        
-        // Get all reject rates by station from all filtered records
-        let allStations = [];
-        
-        filteredData.forEach(record => {
-            if (!record['Reject Rate by Station'] || record['Reject Rate by Station'] === 'No rejects') {
+        function updateProductionChart() {
+            const ctx = document.getElementById('productionChart').getContext('2d');
+            
+            // Check if we have data
+            if (!filteredData.length) {
+                renderNoDataMessage(ctx, 'No production data available for the selected filters');
                 return;
             }
             
-            try {
-                // Split by commas and parse each station rate
-                const stationRates = record['Reject Rate by Station'].split(', ');
-                
-                stationRates.forEach(stationRate => {
-                    const parts = stationRate.split(': ');
-                    if (parts.length === 2) {
-                        const station = parts[0];
-                        const rate = parseFloat(parts[1].replace('%', ''));
-                        
-                        if (!isNaN(rate)) {
-                            const existingStation = allStations.find(s => s.station === station);
-                            
-                            if (existingStation) {
-                                // Update existing station with higher rate
-                                if (rate > existingStation.rate) {
-                                    existingStation.rate = rate;
-                                }
-                            } else {
-                                // Add new station
-                                allStations.push({ station, rate });
-                            }
-                        }
-                    }
-                });
-            } catch (error) {
-                console.error('Error parsing reject rate:', error);
-            }
-        });
-        
-        // Sort and get top 3
-        allStations = allStations.sort((a, b) => b.rate - a.rate).slice(0, 3);
-        
-        // If no stations with reject rates
-        if (!allStations.length) {
-            renderNoDataMessage(ctx, 'No reject rates available for the selected filters');
-            return;
-        }
-        
-        // Prepare data
-        const labels = allStations.map(item => item.station); // Removed truncation to fix issue with missing y-axis labels
-        const rates = allStations.map(item => item.rate);
-        
-        // Color coding based on rate
-        const colors = rates.map(rate => {
-            if (rate <= 5) return 'rgba(46, 204, 113, 0.6)'; // Good (<= 5%)
-            if (rate <= 15) return 'rgba(241, 196, 15, 0.6)'; // Warning (<= 15%)
-            return 'rgba(231, 76, 60, 0.6)'; // Danger (> 15%)
-        });
-        
-        const borderColors = rates.map(rate => {
-            if (rate <= 5) return 'rgba(46, 204, 113, 1)';
-            if (rate <= 15) return 'rgba(241, 196, 15, 1)';
-            return 'rgba(231, 76, 60, 1)';
-        });
-        
-        // Destroy existing chart if it exists
-        if (rejectRateChart) {
-            rejectRateChart.destroy();
-        }
-        
-        // Create new chart
-        rejectRateChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Reject Rate %',
-                        data: rates,
-                        backgroundColor: colors,
-                        borderColor: borderColors,
-                        borderWidth: 1
-                    }
-                ]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: {
-                    duration: 1000,
-                    easing: 'easeOutQuart'
-                },
-                plugins: {
-                    tooltip: {
-                        backgroundColor: config.tooltipBackgroundColor,
-                        callbacks: {
-                            label: function(context) {
-                                const value = context.raw || 0;
-                                return `Reject Rate: ${value.toFixed(2)}%`;
-                            },
-                            afterLabel: function(context) {
-                                const value = context.raw || 0;
-                                if (value <= 5) return 'Status: Good';
-                                if (value <= 15) return 'Status: Warning';
-                                return 'Status: High Rejection';
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Reject Rate (%)'
-                        }
-                    },
-                    y: {
-                        ticks: {
-                            // Make sure station labels are fully visible
-                            callback: function(value, index) {
-                                return labels[index];
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    function updateRejectsList() {
-        // Clear existing list
-        rejectsList.innerHTML = '';
-        
-        // Check if we have data
-        if (!filteredData.length) {
-            const noDataItem = document.createElement('li');
-            noDataItem.classList.add('reject-item', 'no-data-message');
-            noDataItem.textContent = 'No reject data available for the selected filters';
-            rejectsList.appendChild(noDataItem);
-            return;
-        }
-        
-        // Aggregate all rejects from filtered data
-        const allRejects = {
-            qty: [],
-            cost: []
-        };
-        
-        filteredData.forEach(record => {
-            try {
-                const qtyRejects = parseTopRejects(record, 'qty');
-                const costRejects = parseTopRejects(record, 'cost');
-                
-                allRejects.qty = [...allRejects.qty, ...qtyRejects];
-                allRejects.cost = [...allRejects.cost, ...costRejects];
-            } catch (error) {
-                console.error('Error parsing rejects:', error);
-            }
-        });
-        
-        // Group rejects by reason and station
-        const groupedRejects = {
-            qty: {},
-            cost: {}
-        };
-        
-        // Group QTY rejects
-        allRejects.qty.forEach(reject => {
-            const key = `${reject.reason}-${reject.station}`;
+            // Aggregate data if period is not daily
+            const period = chartPeriods.production;
+            const chartData = aggregateDataByPeriod(filteredData, period);
             
-            if (!groupedRejects.qty[key]) {
-                groupedRejects.qty[key] = {
-                    reason: reject.reason,
-                    station: reject.station,
-                    qty: 0,
-                    cost: 0
-                };
-            }
+            // Prepare data
+            const labels = chartData.map(item => 
+                formatDate(item.Date, true) // Use short date format
+            );
             
-            groupedRejects.qty[key].qty += reject.qty;
-            groupedRejects.qty[key].cost += reject.cost;
-        });
-        
-        // Group Cost rejects
-        allRejects.cost.forEach(reject => {
-            const key = `${reject.reason}-${reject.station}`;
+            // Values based on current view mode
+            const actualValues = chartData.map(item => 
+                productionViewMode === 'devices' 
+                    ? item['Actual Devices Produced'] 
+                    : item['Actual Boxes Produced']
+            );
             
-            if (!groupedRejects.cost[key]) {
-                groupedRejects.cost[key] = {
-                    reason: reject.reason,
-                    station: reject.station,
-                    qty: 0,
-                    cost: 0
-                };
-            }
+            const targetValues = chartData.map(item => 
+                productionViewMode === 'devices' 
+                    ? item['Theoretical Target (Devices)'] 
+                    : item['Theoretical Target (Boxes)']
+            );
             
-            groupedRejects.cost[key].qty += reject.qty;
-            groupedRejects.cost[key].cost += reject.cost;
-        });
-        
-        // Convert to arrays
-        const qtyArray = Object.values(groupedRejects.qty);
-        const costArray = Object.values(groupedRejects.cost);
-        
-        // Sort by QTY or Cost
-        qtyArray.sort((a, b) => b.qty - a.qty);
-        costArray.sort((a, b) => b.cost - a.cost);
-        
-        // Get top rejects based on current view mode
-        const topRejects = rejectsViewMode === 'qty' ? qtyArray.slice(0, 3) : costArray.slice(0, 3);
-        
-        if (!topRejects.length) {
-            const noRejectsItem = document.createElement('li');
-            noRejectsItem.classList.add('reject-item', 'no-data-message');
-            noRejectsItem.textContent = 'No rejects found';
-            rejectsList.appendChild(noRejectsItem);
-            return;
-        }
-        
-        // Create list items
-        topRejects.forEach((reject, index) => {
-            const li = document.createElement('li');
-            li.className = 'reject-item';
-            
-            // Determine badge class based on cost or quantity significance
-            let badgeClass = '';
-            if (rejectsViewMode === 'qty') {
-                badgeClass = reject.qty > 20 ? 'badge-danger' : 
-                            reject.qty > 10 ? 'badge-warning' : 'badge-info';
-            } else {
-                badgeClass = reject.cost > 100 ? 'badge-danger' : 
-                            reject.cost > 50 ? 'badge-warning' : 'badge-info';
-            }
-            
-            const reasonDiv = document.createElement('div');
-            reasonDiv.className = 'reject-reason';
-            reasonDiv.innerHTML = `${index + 1}. ${truncateString(reject.reason, 20)} <span class="badge ${badgeClass}">${rejectsViewMode === 'qty' ? reject.qty : config.currencySymbol + reject.cost.toFixed(2)}</span>`;
-            
-            const detailsDiv = document.createElement('div');
-            detailsDiv.className = 'reject-details';
-            
-            const stationSpan = document.createElement('span');
-            stationSpan.textContent = `Station: ${truncateString(reject.station, 15)}`;
-            
-            const qtySpan = document.createElement('span');
-            qtySpan.textContent = `QTY: ${reject.qty}`;
-            
-            const costSpan = document.createElement('span');
-            costSpan.textContent = `Cost: ${config.currencySymbol}${reject.cost.toFixed(2)}`;
-            
-            detailsDiv.appendChild(stationSpan);
-            detailsDiv.appendChild(qtySpan);
-            detailsDiv.appendChild(costSpan);
-            
-            li.appendChild(reasonDiv);
-            li.appendChild(detailsDiv);
-            
-            rejectsList.appendChild(li);
-        });
-    }
-
-    function updateDowntimeList() {
-        // Clear existing list
-        downtimeList.innerHTML = '';
-        
-        // Check if we have data
-        if (!filteredData.length) {
-            const noDataItem = document.createElement('li');
-            noDataItem.classList.add('downtime-item', 'no-data-message');
-            noDataItem.textContent = 'No downtime data available for the selected filters';
-            downtimeList.appendChild(noDataItem);
-            return;
-        }
-        
-        // Collect all downtime entries
-        const allDowntime = [];
-        
-        filteredData.forEach(record => {
-            const downtime = parseDowntime(record);
-            allDowntime.push(...downtime);
-        });
-        
-        if (!allDowntime.length) {
-            const noDowntimeItem = document.createElement('li');
-            noDowntimeItem.classList.add('downtime-item', 'no-data-message');
-            noDowntimeItem.textContent = 'No downtime found';
-            downtimeList.appendChild(noDowntimeItem);
-            return;
-        }
-        
-        // Group by different keys based on view mode
-        let groupedDowntime = {};
-        
-        if (downtimeViewMode === 'reason') {
-            // Group by reason
-            allDowntime.forEach(entry => {
-                if (!groupedDowntime[entry.reason]) {
-                    groupedDowntime[entry.reason] = {
-                        reason: entry.reason,
-                        machines: new Set(),
-                        duration: 0,
-                        cost: 0,
-                        count: 0
-                    };
-                }
-                
-                groupedDowntime[entry.reason].machines.add(entry.machine);
-                groupedDowntime[entry.reason].duration += entry.duration;
-                groupedDowntime[entry.reason].cost += entry.cost;
-                groupedDowntime[entry.reason].count++;
+            // Calculate variance percentages for color coding
+            const variancePercentages = actualValues.map((actual, index) => {
+                const target = targetValues[index];
+                if (!target) return 0;
+                return ((actual - target) / target) * 100;
             });
             
-            // Convert to array and sort by reason
-            const groupedArray = Object.values(groupedDowntime);
-            groupedArray.sort((a, b) => b.count - a.count);
-            
-            // Take top 3
-            const topDowntime = groupedArray.slice(0, 3);
-            
-            // Display in list - more compact now
-            topDowntime.forEach((item, index) => {
-                const li = document.createElement('li');
-                li.className = 'downtime-item';
-                
-                // Create badge based on count
-                const badgeClass = item.count > 5 ? 'badge-danger' : 
-                                 item.count > 2 ? 'badge-warning' : 'badge-info';
-                
-                const reasonDiv = document.createElement('div');
-                reasonDiv.className = 'downtime-reason';
-                reasonDiv.innerHTML = `${index + 1}. ${truncateString(item.reason, 18)} <span class="badge ${badgeClass}">${item.count}x</span>`;
-                
-                const detailsDiv = document.createElement('div');
-                detailsDiv.className = 'downtime-details';
-                
-                const machineSpan = document.createElement('span');
-                machineSpan.textContent = `M: ${truncateString(Array.from(item.machines).join(', '), 10)}`;
-                
-                const durationSpan = document.createElement('span');
-                durationSpan.textContent = `${Math.round(item.duration)}min`;
-                
-                const costSpan = document.createElement('span');
-                costSpan.textContent = `${config.currencySymbol}${item.cost.toFixed(0)}`;
-                
-                detailsDiv.appendChild(machineSpan);
-                detailsDiv.appendChild(durationSpan);
-                detailsDiv.appendChild(costSpan);
-                
-                li.appendChild(reasonDiv);
-                li.appendChild(detailsDiv);
-                
-                downtimeList.appendChild(li);
+            // Color-code based on variance
+            const actualColors = variancePercentages.map(variance => {
+                if (variance >= 0) return 'rgba(46, 204, 113, 0.6)'; // Green for meeting/exceeding target
+                if (variance >= -15) return 'rgba(241, 196, 15, 0.6)'; // Yellow for close to target
+                return 'rgba(231, 76, 60, 0.6)'; // Red for significantly below target
             });
             
-        } else if (downtimeViewMode === 'machine') {
-            // Group by machine
-            allDowntime.forEach(entry => {
-                if (!groupedDowntime[entry.machine]) {
-                    groupedDowntime[entry.machine] = {
-                        machine: entry.machine,
-                        reasons: new Set(),
-                        duration: 0,
-                        cost: 0,
-                        count: 0
-                    };
-                }
-                
-                groupedDowntime[entry.machine].reasons.add(entry.reason);
-                groupedDowntime[entry.machine].duration += entry.duration;
-                groupedDowntime[entry.machine].cost += entry.cost;
-                groupedDowntime[entry.machine].count++;
-            });
-            
-            // Convert to array and sort by machine frequency
-            const groupedArray = Object.values(groupedDowntime);
-            groupedArray.sort((a, b) => b.count - a.count);
-            
-            // Take top 3
-            const topDowntime = groupedArray.slice(0, 3);
-            
-            // Display in list - more compact now
-            topDowntime.forEach((item, index) => {
-                const li = document.createElement('li');
-                li.className = 'downtime-item';
-                
-                // Create badge based on count
-                const badgeClass = item.count > 5 ? 'badge-danger' : 
-                                 item.count > 2 ? 'badge-warning' : 'badge-info';
-                
-                const machineDiv = document.createElement('div');
-                machineDiv.className = 'downtime-reason';
-                machineDiv.innerHTML = `${index + 1}. ${truncateString(item.machine, 18)} <span class="badge ${badgeClass}">${item.count}x</span>`;
-                
-                const detailsDiv = document.createElement('div');
-                detailsDiv.className = 'downtime-details';
-                
-                const reasonSpan = document.createElement('span');
-                reasonSpan.textContent = `I: ${Array.from(item.reasons).length}`;
-                
-                const durationSpan = document.createElement('span');
-                durationSpan.textContent = `${Math.round(item.duration)}min`;
-                
-                const costSpan = document.createElement('span');
-                costSpan.textContent = `${config.currencySymbol}${item.cost.toFixed(0)}`;
-                
-                detailsDiv.appendChild(reasonSpan);
-                detailsDiv.appendChild(durationSpan);
-                detailsDiv.appendChild(costSpan);
-                
-                li.appendChild(machineDiv);
-                li.appendChild(detailsDiv);
-                
-                downtimeList.appendChild(li);
-            });
-            
-        } else { // duration
-            // Group by reason-machine combination for duration view
-            allDowntime.forEach(entry => {
-                const key = `${entry.reason}-${entry.machine}`;
-                
-                if (!groupedDowntime[key]) {
-                    groupedDowntime[key] = {
-                        reason: entry.reason,
-                        machine: entry.machine,
-                        duration: 0,
-                        cost: 0,
-                        count: 0
-                    };
-                }
-                
-                groupedDowntime[key].duration += entry.duration;
-                groupedDowntime[key].cost += entry.cost;
-                groupedDowntime[key].count++;
-            });
-            
-            // Convert to array and sort by duration
-            const groupedArray = Object.values(groupedDowntime);
-            groupedArray.sort((a, b) => b.duration - a.duration);
-            
-            // Take top 3
-            const topDowntime = groupedArray.slice(0, 3);
-            
-            // Display in list - more compact now
-            topDowntime.forEach((item, index) => {
-                const li = document.createElement('li');
-                li.className = 'downtime-item';
-                
-                // Create badge based on duration
-                const badgeClass = item.duration > 120 ? 'badge-danger' : 
-                                 item.duration > 60 ? 'badge-warning' : 'badge-info';
-                
-                const reasonDiv = document.createElement('div');
-                reasonDiv.className = 'downtime-reason';
-                reasonDiv.innerHTML = `${index + 1}. ${truncateString(item.reason, 18)} <span class="badge ${badgeClass}">${Math.round(item.duration)}min</span>`;
-                
-                const detailsDiv = document.createElement('div');
-                detailsDiv.className = 'downtime-details';
-                
-                const machineSpan = document.createElement('span');
-                machineSpan.textContent = `M: ${truncateString(item.machine, 10)}`;
-                
-                const countSpan = document.createElement('span');
-                countSpan.textContent = `Occ: ${item.count}`;
-                
-                const costSpan = document.createElement('span');
-                costSpan.textContent = `${config.currencySymbol}${item.cost.toFixed(0)}`;
-                
-                detailsDiv.appendChild(machineSpan);
-                detailsDiv.appendChild(countSpan);
-                detailsDiv.appendChild(costSpan);
-                
-                li.appendChild(reasonDiv);
-                li.appendChild(detailsDiv);
-                
-                downtimeList.appendChild(li);
-            });
-        }
-    }
-
-    function updateScrapCostChart() {
-        const ctx = document.getElementById('scrapCostChart').getContext('2d');
-        
-        // Check if we have data
-        if (!filteredData.length) {
-            renderNoDataMessage(ctx, 'No scrap cost data available for the selected filters');
-            return;
-        }
-        
-        // Aggregate data if period is not daily
-        const period = chartPeriods.scrapCost;
-        const chartData = aggregateDataByPeriod(filteredData, period);
-        
-        // Prepare data
-        const labels = chartData.map(item => 
-            formatDate(item.Date, true) // Use short date format
-        );
-        const scrapCostValues = chartData.map(item => item['Scrap Cost as % of Production Value']);
-        
-        // Color coding based on thresholds
-        const colorCode = scrapCostValues.map(value => {
-            if (value <= config.scrapCostThresholds.good) {
-                return 'rgba(46, 204, 113, 0.6)'; // Good (green)
-            } else if (value <= config.scrapCostThresholds.warning) {
-                return 'rgba(241, 196, 15, 0.6)'; // Warning (yellow)
-            } else {
-                return 'rgba(231, 76, 60, 0.6)'; // Danger (red)
-            }
-        });
-        
-        const borderColorCode = scrapCostValues.map(value => {
-            if (value <= config.scrapCostThresholds.good) {
-                return 'rgba(46, 204, 113, 1)';
-            } else if (value <= config.scrapCostThresholds.warning) {
-                return 'rgba(241, 196, 15, 1)';
-            } else {
+            const actualBorderColors = variancePercentages.map(variance => {
+                if (variance >= 0) return 'rgba(46, 204, 113, 1)';
+                if (variance >= -15) return 'rgba(241, 196, 15, 1)';
                 return 'rgba(231, 76, 60, 1)';
+            });
+            
+            // Destroy existing chart if it exists
+            if (productionChart) {
+                productionChart.destroy();
             }
-        });
-        
-        // Destroy existing chart if it exists
-        if (scrapCostChart) {
-            scrapCostChart.destroy();
-        }
-        
-        // Determine max value for y-axis
-        const maxScrapCost = Math.max(...scrapCostValues.filter(v => !isNaN(v) && v !== null));
-        const yAxisMax = Math.ceil(maxScrapCost / 5) * 5; // Round up to nearest 5%
-        
-        // Create new chart
-        scrapCostChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Scrap Cost %',
-                        data: scrapCostValues,
-                        backgroundColor: 'rgba(231, 76, 60, 0.2)',
-                        borderColor: borderColorCode,
-                        borderWidth: 2,
-                        tension: 0.1,
-                        fill: true,
-                        pointBackgroundColor: colorCode,
-                        pointBorderColor: borderColorCode,
-                        pointRadius: 5,
-                        pointHoverRadius: 7
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: {
-                    duration: 1000,
-                    easing: 'easeOutQuart'
+            
+            // Create new chart
+            productionChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Actual',
+                            data: actualValues,
+                            backgroundColor: actualColors,
+                            borderColor: actualBorderColors,
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Target',
+                            data: targetValues,
+                            backgroundColor: 'rgba(52, 152, 219, 0.2)',
+                            borderColor: 'rgba(52, 152, 219, 1)',
+                            borderWidth: 1,
+                            type: 'line',
+                            order: 0
+                        }
+                    ]
                 },
-                plugins: {
-                    tooltip: {
-                        backgroundColor: config.tooltipBackgroundColor,
-                        callbacks: {
-                            label: function(context) {
-                                const value = context.raw || 0;
-                                return `Scrap Cost: ${value.toFixed(2)}% of Production Value`;
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeOutQuart'
+                    },
+                    plugins: {
+                        title: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: config.tooltipBackgroundColor,
+                            titleColor: config.tooltipTitleColor,
+                            bodyColor: config.tooltipBodyColor,
+                            borderColor: config.tooltipBorderColor,
+                            borderWidth: config.tooltipBorderWidth,
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.dataset.label || '';
+                                    const value = context.raw || 0;
+                                    const formattedValue = Math.round(value).toLocaleString();
+                                    return `${label}: ${formattedValue} ${productionViewMode === 'devices' ? 'Devices' : 'Boxes'}`;
+                                }
+                            }
+                        },
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: productionViewMode === 'devices' ? 'Devices' : 'Boxes'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: period === 'daily' ? 'Date' : period === 'weekly' ? 'Week' : 'Month'
                             },
-                            afterLabel: function(context) {
-                                const value = context.raw || 0;
-                                let status = '';
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateScheduleAttainmentChart() {
+            const ctx = document.getElementById('scheduleAttainmentChart').getContext('2d');
+            
+            // Check if we have data
+            if (!filteredData.length) {
+                renderNoDataMessage(ctx, 'No schedule data available for the selected filters');
+                return;
+            }
+            
+            // Aggregate data if period is not daily
+            const period = chartPeriods.scheduleAttainment;
+            const chartData = aggregateDataByPeriod(filteredData, period);
+            
+            // Prepare data
+            const labels = chartData.map(item => 
+                formatDate(item.Date, true) // Use short date format
+            );
+            const attainmentValues = chartData.map(item => item['Schedule Attainment']);
+            
+            // Color coding based on thresholds
+            const colorCode = attainmentValues.map(value => {
+                if (value >= config.scheduleAttainmentThresholds.good) {
+                    return 'rgba(46, 204, 113, 0.6)'; // Good (green)
+                } else if (value >= config.scheduleAttainmentThresholds.warning) {
+                    return 'rgba(241, 196, 15, 0.6)'; // Warning (yellow)
+                } else {
+                    return 'rgba(231, 76, 60, 0.6)'; // Danger (red)
+                }
+            });
+            
+            const borderColorCode = attainmentValues.map(value => {
+                if (value >= config.scheduleAttainmentThresholds.good) {
+                    return 'rgba(46, 204, 113, 1)';
+                } else if (value >= config.scheduleAttainmentThresholds.warning) {
+                    return 'rgba(241, 196, 15, 1)';
+                } else {
+                    return 'rgba(231, 76, 60, 1)';
+                }
+            });
+            
+            // Destroy existing chart if it exists
+            if (scheduleAttainmentChart) {
+                scheduleAttainmentChart.destroy();
+            }
+            
+            // Determine max value for y-axis (ensure it's at least 100%, but can go higher)
+            const maxAttainment = Math.max(100, ...attainmentValues.filter(v => !isNaN(v) && v !== null));
+            const yAxisMax = Math.ceil(maxAttainment / 10) * 10; // Round up to nearest 10%
+            
+            // Reference line for 100% attainment
+            const targetLine = {
+                id: 'targetLine',
+                beforeDatasetsDraw(chart) {
+                    const {ctx, chartArea: {top, bottom, left, right}, scales: {x, y}} = chart;
+                    const targetY = y.getPixelForValue(100);
+                    
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(left, targetY);
+                    ctx.lineTo(right, targetY);
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+                    ctx.setLineDash([5, 5]);
+                    ctx.stroke();
+                    ctx.restore();
+                    
+                    // Add label
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                    ctx.font = '11px Arial';
+                    ctx.textAlign = 'left';
+                    ctx.fillText('Target (100%)', left + 5, targetY - 5);
+                }
+            };
+            
+            // Create new chart
+            scheduleAttainmentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Schedule Attainment %',
+                            data: attainmentValues,
+                            backgroundColor: colorCode,
+                            borderColor: borderColorCode,
+                            borderWidth: 2,
+                            tension: 0.1,
+                            fill: false,
+                            pointBackgroundColor: colorCode,
+                            pointBorderColor: borderColorCode,
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeOutQuart'
+                    },
+                    plugins: {
+                        tooltip: {
+                            backgroundColor: config.tooltipBackgroundColor,
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw || 0;
+                                    return `Attainment: ${value.toFixed(1)}%`;
+                                },
+                                afterLabel: function(context) {
+                                    const value = context.raw || 0;
+                                    let status = '';
+                                    
+                                    if (value >= config.scheduleAttainmentThresholds.good) {
+                                        status = 'Good';
+                                    } else if (value >= config.scheduleAttainmentThresholds.warning) {
+                                        status = 'Warning';
+                                    } else {
+                                        status = 'Below Target';
+                                    }
+                                    
+                                    return `Status: ${status}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: yAxisMax,
+                            title: {
+                                display: true,
+                                text: 'Percentage (%)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    }
+                },
+                plugins: [targetLine]
+            });
+            
+            // Add annotations for outliers
+            if (outliers['Schedule Attainment'] && outliers['Schedule Attainment'].length > 0) {
+                addOutlierAnnotations('scheduleAttainmentChart', outliers['Schedule Attainment'], chartData);
+            }
+        }
+
+        function updateRejectRateChart() {
+            const ctx = document.getElementById('rejectRateChart').getContext('2d');
+            
+            // Check if we have data
+            if (!filteredData.length) {
+                renderNoDataMessage(ctx, 'No reject data available for the selected filters');
+                return;
+            }
+            
+            // Get all reject rates by station from all filtered records
+            let allStations = [];
+            
+            filteredData.forEach(record => {
+                if (!record['Reject Rate by Station'] || record['Reject Rate by Station'] === 'No rejects') {
+                    return;
+                }
+                
+                try {
+                    // Split by commas and parse each station rate
+                    const stationRates = record['Reject Rate by Station'].split(', ');
+                    
+                    stationRates.forEach(stationRate => {
+                        const parts = stationRate.split(': ');
+                        if (parts.length === 2) {
+                            const station = parts[0];
+                            const rate = parseFloat(parts[1].replace('%', ''));
+                            
+                            if (!isNaN(rate)) {
+                                const existingStation = allStations.find(s => s.station === station);
                                 
-                                if (value <= config.scrapCostThresholds.good) {
-                                    status = 'Good';
-                                } else if (value <= config.scrapCostThresholds.warning) {
-                                    status = 'Warning';
+                                if (existingStation) {
+                                    // Update existing station with higher rate
+                                    if (rate > existingStation.rate) {
+                                        existingStation.rate = rate;
+                                    }
                                 } else {
-                                    status = 'High Scrap Cost';
+                                    // Add new station
+                                    allStations.push({ station, rate });
                                 }
-                                
-                                return `Status: ${status}`;
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error parsing reject rate:', error);
+                }
+            });
+            
+            // Sort and get top 3
+            allStations = allStations.sort((a, b) => b.rate - a.rate).slice(0, 3);
+            
+            // If no stations with reject rates
+            if (!allStations.length) {
+                renderNoDataMessage(ctx, 'No reject rates available for the selected filters');
+                return;
+            }
+            
+            // Prepare data
+            const labels = allStations.map(item => item.station);
+            const rates = allStations.map(item => item.rate);
+            
+            // Color coding based on rate
+            const colors = rates.map(rate => {
+                if (rate <= 5) return 'rgba(46, 204, 113, 0.6)'; // Good (<= 5%)
+                if (rate <= 15) return 'rgba(241, 196, 15, 0.6)'; // Warning (<= 15%)
+                return 'rgba(231, 76, 60, 0.6)'; // Danger (> 15%)
+            });
+            
+            const borderColors = rates.map(rate => {
+                if (rate <= 5) return 'rgba(46, 204, 113, 1)';
+                if (rate <= 15) return 'rgba(241, 196, 15, 1)';
+                return 'rgba(231, 76, 60, 1)';
+            });
+            
+            // Destroy existing chart if it exists
+            if (rejectRateChart) {
+                rejectRateChart.destroy();
+            }
+            
+            // Create new chart
+            rejectRateChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Reject Rate %',
+                            data: rates,
+                            backgroundColor: colors,
+                            borderColor: borderColors,
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeOutQuart'
+                    },
+                    plugins: {
+                        tooltip: {
+                            backgroundColor: config.tooltipBackgroundColor,
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw || 0;
+                                    return `Reject Rate: ${value.toFixed(2)}%`;
+                                },
+                                afterLabel: function(context) {
+                                    const value = context.raw || 0;
+                                    if (value <= 5) return 'Status: Good';
+                                    if (value <= 15) return 'Status: Warning';
+                                    return 'Status: High Rejection';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Reject Rate (%)'
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                callback: function(value, index) {
+                                    return labels[index];
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateRejectsList() {
+            // Clear existing list
+            rejectsList.innerHTML = '';
+            
+            // Check if we have data
+            if (!filteredData.length) {
+                const noDataItem = document.createElement('li');
+                noDataItem.classList.add('reject-item', 'no-data-message');
+                noDataItem.textContent = 'No reject data available for the selected filters';
+                rejectsList.appendChild(noDataItem);
+                return;
+            }
+            
+            // Aggregate all rejects from filtered data
+            const allRejects = {
+                qty: [],
+                cost: []
+            };
+            
+            filteredData.forEach(record => {
+                try {
+                    const qtyRejects = parseTopRejects(record, 'qty');
+                    const costRejects = parseTopRejects(record, 'cost');
+                    
+                    allRejects.qty = [...allRejects.qty, ...qtyRejects];
+                    allRejects.cost = [...allRejects.cost, ...costRejects];
+                } catch (error) {
+                    console.error('Error parsing rejects:', error);
+                }
+            });
+            
+            // Group rejects by reason and station
+            const groupedRejects = {
+                qty: {},
+                cost: {}
+            };
+            
+            // Group QTY rejects
+            allRejects.qty.forEach(reject => {
+                const key = `${reject.reason}-${reject.station}`;
+                
+                if (!groupedRejects.qty[key]) {
+                    groupedRejects.qty[key] = {
+                        reason: reject.reason,
+                        station: reject.station,
+                        qty: 0,
+                        cost: 0
+                    };
+                }
+                
+                groupedRejects.qty[key].qty += reject.qty;
+                groupedRejects.qty[key].cost += reject.cost;
+            });
+            
+            // Group Cost rejects
+            allRejects.cost.forEach(reject => {
+                const key = `${reject.reason}-${reject.station}`;
+                
+                if (!groupedRejects.cost[key]) {
+                    groupedRejects.cost[key] = {
+                        reason: reject.reason,
+                        station: reject.station,
+                        qty: 0,
+                        cost: 0
+                    };
+                }
+                
+                groupedRejects.cost[key].qty += reject.qty;
+                groupedRejects.cost[key].cost += reject.cost;
+            });
+            
+            // Convert to arrays
+            const qtyArray = Object.values(groupedRejects.qty);
+            const costArray = Object.values(groupedRejects.cost);
+            
+            // Sort by QTY or Cost
+            qtyArray.sort((a, b) => b.qty - a.qty);
+            costArray.sort((a, b) => b.cost - a.cost);
+            
+            // Get top rejects based on current view mode
+            const topRejects = rejectsViewMode === 'qty' ? qtyArray.slice(0, 3) : costArray.slice(0, 3);
+            
+            if (!topRejects.length) {
+                const noRejectsItem = document.createElement('li');
+                noRejectsItem.classList.add('reject-item', 'no-data-message');
+                noRejectsItem.textContent = 'No rejects found';
+                rejectsList.appendChild(noRejectsItem);
+                return;
+            }
+            
+            // Create list items
+            topRejects.forEach((reject, index) => {
+                const li = document.createElement('li');
+                li.className = 'reject-item';
+                
+                // Determine badge class based on cost or quantity significance
+                let badgeClass = '';
+                if (rejectsViewMode === 'qty') {
+                    badgeClass = reject.qty > 20 ? 'badge-danger' : 
+                                reject.qty > 10 ? 'badge-warning' : 'badge-info';
+                } else {
+                    badgeClass = reject.cost > 100 ? 'badge-danger' : 
+                                reject.cost > 50 ? 'badge-warning' : 'badge-info';
+                }
+                
+                const reasonDiv = document.createElement('div');
+                reasonDiv.className = 'reject-reason';
+                reasonDiv.innerHTML = `${index + 1}. ${truncateString(reject.reason, 20)} <span class="badge ${badgeClass}">${rejectsViewMode === 'qty' ? reject.qty : config.currencySymbol + reject.cost.toFixed(2)}</span>`;
+                
+                const detailsDiv = document.createElement('div');
+                detailsDiv.className = 'reject-details';
+                
+                const stationSpan = document.createElement('span');
+                stationSpan.textContent = `Station: ${truncateString(reject.station, 15)}`;
+                
+                const qtySpan = document.createElement('span');
+                qtySpan.textContent = `QTY: ${reject.qty}`;
+                
+                const costSpan = document.createElement('span');
+                costSpan.textContent = `Cost: ${config.currencySymbol}${reject.cost.toFixed(2)}`;
+                
+                detailsDiv.appendChild(stationSpan);
+                detailsDiv.appendChild(qtySpan);
+                detailsDiv.appendChild(costSpan);
+                
+                li.appendChild(reasonDiv);
+                li.appendChild(detailsDiv);
+                
+                rejectsList.appendChild(li);
+            });
+        }
+
+        function updateDowntimeList() {
+            // Clear existing list
+            downtimeList.innerHTML = '';
+            
+            // Check if we have data
+            if (!filteredData.length) {
+                const noDataItem = document.createElement('li');
+                noDataItem.classList.add('downtime-item', 'no-data-message');
+                noDataItem.textContent = 'No downtime data available for the selected filters';
+                downtimeList.appendChild(noDataItem);
+                return;
+            }
+            
+            // Collect all downtime entries
+            const allDowntime = [];
+            
+            filteredData.forEach(record => {
+                const downtime = parseDowntime(record);
+                allDowntime.push(...downtime);
+            });
+            
+            if (!allDowntime.length) {
+                const noDowntimeItem = document.createElement('li');
+                noDowntimeItem.classList.add('downtime-item', 'no-data-message');
+                noDowntimeItem.textContent = 'No downtime found';
+                downtimeList.appendChild(noDowntimeItem);
+                return;
+            }
+            
+            // Group by different keys based on view mode
+            let groupedDowntime = {};
+            
+            if (downtimeViewMode === 'reason') {
+                // Group by reason
+                allDowntime.forEach(entry => {
+                    if (!groupedDowntime[entry.reason]) {
+                        groupedDowntime[entry.reason] = {
+                            reason: entry.reason,
+                            machines: new Set(),
+                            duration: 0,
+                            cost: 0,
+                            count: 0
+                        };
+                    }
+                    
+                    groupedDowntime[entry.reason].machines.add(entry.machine);
+                    groupedDowntime[entry.reason].duration += entry.duration;
+                    groupedDowntime[entry.reason].cost += entry.cost;
+                    groupedDowntime[entry.reason].count++;
+                });
+                
+                // Convert to array and sort by reason
+                const groupedArray = Object.values(groupedDowntime);
+                groupedArray.sort((a, b) => b.count - a.count);
+                
+                // Take top 3
+                const topDowntime = groupedArray.slice(0, 3);
+                
+                // Display in list - more compact now
+                topDowntime.forEach((item, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'downtime-item';
+                    
+                    // Create badge based on count
+                    const badgeClass = item.count > 5 ? 'badge-danger' : 
+                                     item.count > 2 ? 'badge-warning' : 'badge-info';
+                    
+                    const reasonDiv = document.createElement('div');
+                    reasonDiv.className = 'downtime-reason';
+                    reasonDiv.innerHTML = `${index + 1}. ${truncateString(item.reason, 18)} <span class="badge ${badgeClass}">${item.count}x</span>`;
+                    
+                    const detailsDiv = document.createElement('div');
+                    detailsDiv.className = 'downtime-details';
+                    
+                    const machineSpan = document.createElement('span');
+                    machineSpan.textContent = `M: ${truncateString(Array.from(item.machines).join(', '), 10)}`;
+                    
+                    const durationSpan = document.createElement('span');
+                    durationSpan.textContent = `${Math.round(item.duration)}min`;
+                    
+                    const costSpan = document.createElement('span');
+                    costSpan.textContent = `${config.currencySymbol}${item.cost.toFixed(0)}`;
+                    
+                    detailsDiv.appendChild(machineSpan);
+                    detailsDiv.appendChild(durationSpan);
+                    detailsDiv.appendChild(costSpan);
+                    
+                    li.appendChild(reasonDiv);
+                    li.appendChild(detailsDiv);
+                    
+                    downtimeList.appendChild(li);
+                });
+                
+            } else if (downtimeViewMode === 'machine') {
+                // Group by machine
+                allDowntime.forEach(entry => {
+                    if (!groupedDowntime[entry.machine]) {
+                        groupedDowntime[entry.machine] = {
+                            machine: entry.machine,
+                            reasons: new Set(),
+                            duration: 0,
+                            cost: 0,
+                            count: 0
+                        };
+                    }
+                    
+                    groupedDowntime[entry.machine].reasons.add(entry.reason);
+                    groupedDowntime[entry.machine].duration += entry.duration;
+                    groupedDowntime[entry.machine].cost += entry.cost;
+                    groupedDowntime[entry.machine].count++;
+                });
+                
+                // Convert to array and sort by machine frequency
+                const groupedArray = Object.values(groupedDowntime);
+                groupedArray.sort((a, b) => b.count - a.count);
+                
+                // Take top 3
+                const topDowntime = groupedArray.slice(0, 3);
+                
+                // Display in list - more compact now
+                topDowntime.forEach((item, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'downtime-item';
+                    
+                    // Create badge based on count
+                    const badgeClass = item.count > 5 ? 'badge-danger' : 
+                                     item.count > 2 ? 'badge-warning' : 'badge-info';
+                    
+                    const machineDiv = document.createElement('div');
+                    machineDiv.className = 'downtime-reason';
+                    machineDiv.innerHTML = `${index + 1}. ${truncateString(item.machine, 18)} <span class="badge ${badgeClass}">${item.count}x</span>`;
+                    
+                    const detailsDiv = document.createElement('div');
+                    detailsDiv.className = 'downtime-details';
+                    
+                    const reasonSpan = document.createElement('span');
+                    reasonSpan.textContent = `I: ${Array.from(item.reasons).length}`;
+                    
+                    const durationSpan = document.createElement('span');
+                    durationSpan.textContent = `${Math.round(item.duration)}min`;
+                    
+                    const costSpan = document.createElement('span');
+                    costSpan.textContent = `${config.currencySymbol}${item.cost.toFixed(0)}`;
+                    
+                    detailsDiv.appendChild(reasonSpan);
+                    detailsDiv.appendChild(durationSpan);
+                    detailsDiv.appendChild(costSpan);
+                    
+                    li.appendChild(machineDiv);
+                    li.appendChild(detailsDiv);
+                    
+                    downtimeList.appendChild(li);
+                });
+                
+            } else { // duration
+                // Group by reason-machine combination for duration view
+                allDowntime.forEach(entry => {
+                    const key = `${entry.reason}-${entry.machine}`;
+                    
+                    if (!groupedDowntime[key]) {
+                        groupedDowntime[key] = {
+                            reason: entry.reason,
+                            machine: entry.machine,
+                            duration: 0,
+                            cost: 0,
+                            count: 0
+                        };
+                    }
+                    
+                    groupedDowntime[key].duration += entry.duration;
+                    groupedDowntime[key].cost += entry.cost;
+                    groupedDowntime[key].count++;
+                });
+                
+                // Convert to array and sort by duration
+                const groupedArray = Object.values(groupedDowntime);
+                groupedArray.sort((a, b) => b.duration - a.duration);
+                
+                // Take top 3
+                const topDowntime = groupedArray.slice(0, 3);
+                
+                // Display in list - more compact now
+                topDowntime.forEach((item, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'downtime-item';
+                    
+                    // Create badge based on duration
+                    const badgeClass = item.duration > 120 ? 'badge-danger' : 
+                                     item.duration > 60 ? 'badge-warning' : 'badge-info';
+                    
+                    const reasonDiv = document.createElement('div');
+                    reasonDiv.className = 'downtime-reason';
+                    reasonDiv.innerHTML = `${index + 1}. ${truncateString(item.reason, 18)} <span class="badge ${badgeClass}">${Math.round(item.duration)}min</span>`;
+                    
+                    const detailsDiv = document.createElement('div');
+                    detailsDiv.className = 'downtime-details';
+                    
+                    const machineSpan = document.createElement('span');
+                    machineSpan.textContent = `M: ${truncateString(item.machine, 10)}`;
+                    
+                    const countSpan = document.createElement('span');
+                    countSpan.textContent = `Occ: ${item.count}`;
+                    
+                    const costSpan = document.createElement('span');
+                    costSpan.textContent = `${config.currencySymbol}${item.cost.toFixed(0)}`;
+                    
+                    detailsDiv.appendChild(machineSpan);
+                    detailsDiv.appendChild(countSpan);
+                    detailsDiv.appendChild(costSpan);
+                    
+                    li.appendChild(reasonDiv);
+                    li.appendChild(detailsDiv);
+                    
+                    downtimeList.appendChild(li);
+                });
+            }
+        }
+
+        function updateScrapCostChart() {
+            const ctx = document.getElementById('scrapCostChart').getContext('2d');
+            
+            // Check if we have data
+            if (!filteredData.length) {
+                renderNoDataMessage(ctx, 'No scrap cost data available for the selected filters');
+                return;
+            }
+            
+            // Aggregate data if period is not daily
+            const period = chartPeriods.scrapCost;
+            const chartData = aggregateDataByPeriod(filteredData, period);
+            
+            // Prepare data
+            const labels = chartData.map(item => 
+                formatDate(item.Date, true) // Use short date format
+            );
+            const scrapCostValues = chartData.map(item => item['Scrap Cost as % of Production Value']);
+            
+            // Color coding based on thresholds
+            const colorCode = scrapCostValues.map(value => {
+                if (value <= config.scrapCostThresholds.good) {
+                    return 'rgba(46, 204, 113, 0.6)'; // Good (green)
+                } else if (value <= config.scrapCostThresholds.warning) {
+                    return 'rgba(241, 196, 15, 0.6)'; // Warning (yellow)
+                } else {
+                    return 'rgba(231, 76, 60, 0.6)'; // Danger (red)
+                }
+            });
+            
+            const borderColorCode = scrapCostValues.map(value => {
+                if (value <= config.scrapCostThresholds.good) {
+                    return 'rgba(46, 204, 113, 1)';
+                } else if (value <= config.scrapCostThresholds.warning) {
+                    return 'rgba(241, 196, 15, 1)';
+                } else {
+                    return 'rgba(231, 76, 60, 1)';
+                }
+            });
+            
+            // Destroy existing chart if it exists
+            if (scrapCostChart) {
+                scrapCostChart.destroy();
+            }
+            
+            // Determine max value for y-axis
+            const maxScrapCost = Math.max(...scrapCostValues.filter(v => !isNaN(v) && v !== null));
+            const yAxisMax = Math.ceil(maxScrapCost / 5) * 5; // Round up to nearest 5%
+            
+            // Create new chart
+            scrapCostChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Scrap Cost %',
+                            data: scrapCostValues,
+                            backgroundColor: 'rgba(231, 76, 60, 0.2)',
+                            borderColor: borderColorCode,
+                            borderWidth: 2,
+                            tension: 0.1,
+                            fill: true,
+                            pointBackgroundColor: colorCode,
+                            pointBorderColor: borderColorCode,
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeOutQuart'
+                    },
+                    plugins: {
+                        tooltip: {
+                            backgroundColor: config.tooltipBackgroundColor,
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw || 0;
+                                    return `Scrap Cost: ${value.toFixed(2)}% of Production Value`;
+                                },
+                                afterLabel: function(context) {
+                                    const value = context.raw || 0;
+                                    let status = '';
+                                    
+                                    if (value <= config.scrapCostThresholds.good) {
+                                        status = 'Good';
+                                    } else if (value <= config.scrapCostThresholds.warning) {
+                                        status = 'Warning';
+                                    } else {
+                                        status = 'High Scrap Cost';
+                                    }
+                                    
+                                    return `Status: ${status}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: yAxisMax > 0 ? yAxisMax : 5, // Use calculated max or 5 as minimum
+                            title: {
+                                display: true,
+                                text: 'Percentage (%)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Add annotations for outliers
+            if (outliers['Scrap Cost as % of Production Value'] && outliers['Scrap Cost as % of Production Value'].length > 0) {
+                addOutlierAnnotations('scrapCostChart', outliers['Scrap Cost as % of Production Value'], chartData);
+            }
+        }
+
+        function updateCostMetricsChart() {
+            const ctx = document.getElementById('costMetricsChart').getContext('2d');
+            
+            // Check if we have data
+            if (!filteredData.length) {
+                renderNoDataMessage(ctx, 'No cost data available for the selected filters');
+                return;
+            }
+            
+            // Aggregate data if period is not daily
+            const period = chartPeriods.costMetrics;
+            const chartData = aggregateDataByPeriod(filteredData, period);
+            
+            // Prepare data
+            const labels = chartData.map(item => 
+                formatDate(item.Date, true) // Use short date format
+            );
+            
+            // Values based on current view mode
+            let values;
+            let label;
+            
+            if (costViewMode === 'staff') {
+                values = chartData.map(item => item['Staff Cost']);
+                label = 'Staff Cost';
+            } else {
+                values = chartData.map(item => item['Cost Per Unit']);
+                label = 'Cost Per Unit';
+            }
+            
+            // Calculate average for reference line
+            const validValues = values.filter(v => v !== null && v !== undefined && !isNaN(v));
+            const avgValue = validValues.length > 0 
+                ? validValues.reduce((sum, val) => sum + val, 0) / validValues.length 
+                : 0;
+            
+            // Destroy existing chart if it exists
+            if (costMetricsChart) {
+                costMetricsChart.destroy();
+            }
+            
+            // Average line plugin
+            const avgLine = {
+                id: 'avgLine',
+                beforeDatasetsDraw(chart) {
+                    if (avgValue <= 0) return;
+                    
+                    const {ctx, chartArea: {top, bottom, left, right}, scales: {x, y}} = chart;
+                    const avgY = y.getPixelForValue(avgValue);
+                    
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(left, avgY);
+                    ctx.lineTo(right, avgY);
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = 'rgba(155, 89, 182, 0.7)';
+                    ctx.setLineDash([5, 5]);
+                    ctx.stroke();
+                    ctx.restore();
+                    
+                    // Add label
+                    ctx.fillStyle = 'rgba(155, 89, 182, 0.8)';
+                    ctx.font = '11px Arial';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(`Avg: ${config.currencySymbol}${avgValue.toFixed(2)}`, left + 5, avgY - 5);
+                }
+            };
+            
+            // Create new chart
+            costMetricsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: label,
+                            data: values,
+                            backgroundColor: config.chartsDefaultColors[4],
+                            borderColor: config.chartsDefaultBorderColors[4],
+                            borderWidth: 2,
+                            tension: 0.1,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeOutQuart'
+                    },
+                    plugins: {
+                        tooltip: {
+                            backgroundColor: config.tooltipBackgroundColor,
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw || 0;
+                                    return `${label}: ${config.currencySymbol}${value.toFixed(2)}`;
+                                },
+                                afterLabel: function(context) {
+                                    const value = context.raw || 0;
+                                    if (avgValue > 0) {
+                                        const diff = value - avgValue;
+                                        const percentDiff = (diff / avgValue) * 100;
+                                        const sign = diff >= 0 ? '+' : '';
+                                        return `vs Avg: ${sign}${percentDiff.toFixed(1)}%`;
+                                    }
+                                    return '';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: costViewMode === 'staff' ? 'Cost' : 'Cost Per Unit'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
                             }
                         }
                     }
                 },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: yAxisMax > 0 ? yAxisMax : 5, // Use calculated max or 5 as minimum
-                        title: {
-                            display: true,
-                            text: 'Percentage (%)'
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 45
-                        }
-                    }
-                }
+                plugins: [avgLine]
+            });
+            
+            // Add annotations for outliers
+            if (outliers['Cost Per Unit'] && costViewMode === 'unit') {
+                addOutlierAnnotations('costMetricsChart', outliers['Cost Per Unit'], chartData);
             }
-        });
-        
-        // Add annotations for outliers
-        if (outliers['Scrap Cost as % of Production Value'] && outliers['Scrap Cost as % of Production Value'].length > 0) {
-            addOutlierAnnotations('scrapCostChart', outliers['Scrap Cost as % of Production Value'], chartData);
         }
-    }
 
-    function updateCostMetricsChart() {
-        const ctx = document.getElementById('costMetricsChart').getContext('2d');
-        
-        // Check if we have data
-        if (!filteredData.length) {
-            renderNoDataMessage(ctx, 'No cost data available for the selected filters');
-            return;
+        // UI utilities
+        function renderNoDataMessage(ctx, message) {
+            // Clear the canvas
+            const canvas = ctx.canvas;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw message
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = '14px Arial';
+            ctx.fillStyle = '#95a5a6';
+            ctx.fillText(message, canvas.width / 2, canvas.height / 2);
         }
-        
-        // Aggregate data if period is not daily
-        const period = chartPeriods.costMetrics;
-        const chartData = aggregateDataByPeriod(filteredData, period);
-        
-        // Prepare data
-        const labels = chartData.map(item => 
-            formatDate(item.Date, true) // Use short date format
-        );
-        
-        // Values based on current view mode
-        let values;
-        let label;
-        
-        if (costViewMode === 'staff') {
-            values = chartData.map(item => item['Staff Cost']);
-            label = 'Staff Cost';
-        } else {
-            values = chartData.map(item => item['Cost Per Unit']);
-            label = 'Cost Per Unit';
+
+        function showLoader() {
+            loaderContainer.style.display = 'flex';
         }
-        
-        // Calculate average for reference line
-        const validValues = values.filter(v => v !== null && v !== undefined && !isNaN(v));
-        const avgValue = validValues.length > 0 
-            ? validValues.reduce((sum, val) => sum + val, 0) / validValues.length 
-            : 0;
-        
-        // Destroy existing chart if it exists
-        if (costMetricsChart) {
-            costMetricsChart.destroy();
+
+        function hideLoader() {
+            loaderContainer.style.display = 'none';
         }
-        
-        // Average line plugin
-        const avgLine = {
-            id: 'avgLine',
-            beforeDatasetsDraw(chart) {
-                if (avgValue <= 0) return;
-                
-                const {ctx, chartArea: {top, bottom, left, right}, scales: {x, y}} = chart;
-                const avgY = y.getPixelForValue(avgValue);
-                
-                ctx.save();
-                ctx.beginPath();
-                ctx.moveTo(left, avgY);
-                ctx.lineTo(right, avgY);
-                ctx.lineWidth = 1;
-                ctx.strokeStyle = 'rgba(155, 89, 182, 0.7)';
-                ctx.setLineDash([5, 5]);
-                ctx.stroke();
-                ctx.restore();
-                
-                // Add label
-                ctx.fillStyle = 'rgba(155, 89, 182, 0.8)';
-                ctx.font = '11px Arial';
-                ctx.textAlign = 'left';
-                ctx.fillText(`Avg: ${config.currencySymbol}${avgValue.toFixed(2)}`, left + 5, avgY - 5);
-            }
-        };
-        
-        // Create new chart
-        costMetricsChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: label,
-                        data: values,
-                        backgroundColor: config.chartsDefaultColors[4],
-                        borderColor: config.chartsDefaultBorderColors[4],
-                        borderWidth: 2,
-                        tension: 0.1,
-                        fill: false
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: {
-                    duration: 1000,
-                    easing: 'easeOutQuart'
-                },
-                plugins: {
-                    tooltip: {
-                        backgroundColor: config.tooltipBackgroundColor,
-                        callbacks: {
-                            label: function(context) {
-                                const value = context.raw || 0;
-                                return `${label}: ${config.currencySymbol}${value.toFixed(2)}`;
-                            },
-                            afterLabel: function(context) {
-                                const value = context.raw || 0;
-                                if (avgValue > 0) {
-                                    const diff = value - avgValue;
-                                    const percentDiff = (diff / avgValue) * 100;
-                                    const sign = diff >= 0 ? '+' : '';
-                                    return `vs Avg: ${sign}${percentDiff.toFixed(1)}%`;
-                                }
-                                return '';
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: costViewMode === 'staff' ? 'Cost' : 'Cost Per Unit'
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 45
-                        }
-                    }
-                }
-            },
-            plugins: [avgLine]
-        });
-        
-        // Add annotations for outliers
-        if (outliers['Cost Per Unit'] && costViewMode === 'unit') {
-            addOutlierAnnotations('costMetricsChart', outliers['Cost Per Unit'], chartData);
+
+        // Event listeners
+        function setupEventListeners() {
+            // Apply date filters button
+            applyDateFiltersBtn.addEventListener('click', applyFilters);
+            
+            // Apply product filters button (new)
+            applyProductFiltersBtn.addEventListener('click', applyFilters);
+            
+            // Toggle production view
+            toggleProductionViewBtn.addEventListener('click', () => {
+                productionViewMode = productionViewMode === 'devices' ? 'boxes' : 'devices';
+                toggleProductionViewBtn.innerHTML = `<i class="fas fa-exchange-alt"></i> Show ${productionViewMode === 'devices' ? 'Boxes' : 'Devices'}`;
+                updateProductionChart();
+            });
+            
+            // Toggle rejects view
+            rejectsByQtyBtn.addEventListener('click', () => {
+                rejectsViewMode = 'qty';
+                rejectsByQtyBtn.classList.add('active');
+                rejectsByCostBtn.classList.remove('active');
+                updateRejectsList();
+            });
+            
+            rejectsByCostBtn.addEventListener('click', () => {
+                rejectsViewMode = 'cost';
+                rejectsByCostBtn.classList.add('active');
+                rejectsByQtyBtn.classList.remove('active');
+                updateRejectsList();
+            });
+            
+            // Toggle downtime view
+            downtimeByReasonBtn.addEventListener('click', () => {
+                downtimeViewMode = 'reason';
+                downtimeByReasonBtn.classList.add('active');
+                downtimeByMachineBtn.classList.remove('active');
+                downtimeByDurationBtn.classList.remove('active');
+                updateDowntimeList();
+            });
+            
+            downtimeByMachineBtn.addEventListener('click', () => {
+                downtimeViewMode = 'machine';
+                downtimeByMachineBtn.classList.add('active');
+                downtimeByReasonBtn.classList.remove('active');
+                downtimeByDurationBtn.classList.remove('active');
+                updateDowntimeList();
+            });
+            
+            downtimeByDurationBtn.addEventListener('click', () => {
+                downtimeViewMode = 'duration';
+                downtimeByDurationBtn.classList.add('active');
+                downtimeByReasonBtn.classList.remove('active');
+                downtimeByMachineBtn.classList.remove('active');
+                updateDowntimeList();
+            });
+            
+            // Toggle cost metrics view
+            showStaffCostBtn.addEventListener('click', () => {
+                costViewMode = 'staff';
+                showStaffCostBtn.classList.add('active');
+                showCostPerUnitBtn.classList.remove('active');
+                updateCostMetricsChart();
+            });
+            
+            showCostPerUnitBtn.addEventListener('click', () => {
+                costViewMode = 'unit';
+                showCostPerUnitBtn.classList.add('active');
+                showStaffCostBtn.classList.remove('active');
+                updateCostMetricsChart();
+            });
         }
-    }
 
-    // UI utilities
-    function renderNoDataMessage(ctx, message) {
-        // Clear the canvas
-        const canvas = ctx.canvas;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw message
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font = '14px Arial';
-        ctx.fillStyle = '#95a5a6';
-        ctx.fillText(message, canvas.width / 2, canvas.height / 2);
-    }
+        // Initialization
+        function init() {
+            setupEventListeners();
+            fetchData();
+        }
 
-    function showLoader() {
-        loaderContainer.style.display = 'flex';
-    }
-
-    function hideLoader() {
-        loaderContainer.style.display = 'none';
-    }
-
-    // Event listeners
-    function setupEventListeners() {
-        // Apply date filters button
-        applyDateFiltersBtn.addEventListener('click', applyFilters);
-        
-        // Apply product filters button (new)
-        applyProductFiltersBtn.addEventListener('click', applyFilters);
-        
-        // Toggle production view
-        toggleProductionViewBtn.addEventListener('click', () => {
-            productionViewMode = productionViewMode === 'devices' ? 'boxes' : 'devices';
-            toggleProductionViewBtn.innerHTML = `<i class="fas fa-exchange-alt"></i> Show ${productionViewMode === 'devices' ? 'Boxes' : 'Devices'}`;
-            updateProductionChart();
-        });
-        
-        // Toggle rejects view
-        rejectsByQtyBtn.addEventListener('click', () => {
-            rejectsViewMode = 'qty';
-            rejectsByQtyBtn.classList.add('active');
-            rejectsByCostBtn.classList.remove('active');
-            updateRejectsList();
-        });
-        
-        rejectsByCostBtn.addEventListener('click', () => {
-            rejectsViewMode = 'cost';
-            rejectsByCostBtn.classList.add('active');
-            rejectsByQtyBtn.classList.remove('active');
-            updateRejectsList();
-        });
-        
-        // Toggle downtime view
-        downtimeByReasonBtn.addEventListener('click', () => {
-            downtimeViewMode = 'reason';
-            downtimeByReasonBtn.classList.add('active');
-            downtimeByMachineBtn.classList.remove('active');
-            downtimeByDurationBtn.classList.remove('active');
-            updateDowntimeList();
-        });
-        
-        downtimeByMachineBtn.addEventListener('click', () => {
-            downtimeViewMode = 'machine';
-            downtimeByMachineBtn.classList.add('active');
-            downtimeByReasonBtn.classList.remove('active');
-            downtimeByDurationBtn.classList.remove('active');
-            updateDowntimeList();
-        });
-        
-        downtimeByDurationBtn.addEventListener('click', () => {
-            downtimeViewMode = 'duration';
-            downtimeByDurationBtn.classList.add('active');
-            downtimeByReasonBtn.classList.remove('active');
-            downtimeByMachineBtn.classList.remove('active');
-            updateDowntimeList();
-        });
-        
-        // Toggle cost metrics view
-        showStaffCostBtn.addEventListener('click', () => {
-            costViewMode = 'staff';
-            showStaffCostBtn.classList.add('active');
-            showCostPerUnitBtn.classList.remove('active');
-            updateCostMetricsChart();
-        });
-        
-        showCostPerUnitBtn.addEventListener('click', () => {
-            costViewMode = 'unit';
-            showCostPerUnitBtn.classList.add('active');
-            showStaffCostBtn.classList.remove('active');
-            updateCostMetricsChart();
-        });
-    }
-
-    // Initialization
-    function init() {
-        setupEventListeners();
-        fetchData();
-    }
-
-    // Start the application when the DOM is fully loaded
-    document.addEventListener('DOMContentLoaded', init);
-</script>
-
-</body>
+        // Start the application when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+    </body>
 </html>
+            
